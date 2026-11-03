@@ -65,7 +65,7 @@ private enum StatusIcon {
         let image = NSImage(size: NSSize(width: points, height: points), flipped: false) { _ in
             guard let ctx = NSGraphicsContext.current?.cgContext else { return false }
             let scale = CGFloat(pixels) / points
-            ctx.scaleBy(x: scale)
+            ctx.scaleBy(x: scale, y: scale)
             ctx.setFillColor(NSColor.black.cgColor)
 
             let c = CGPoint(x: points / 2, y: points / 2)
