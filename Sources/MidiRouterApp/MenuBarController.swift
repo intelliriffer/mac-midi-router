@@ -24,8 +24,9 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         item.button?.target = self
         item.button?.action = #selector(togglePopover(_:))
-        item.button?.image = StatusIcon.image()
-        item.button?.imageScaling = .scaleProportionallyDown
+        // Musical, instantly recognizable menu-bar mark (SF Symbol).
+        item.button?.image = NSImage(systemSymbolName: "pianokeys",
+                                     accessibilityDescription: "mac-midi-router")
         statusItem = item
     }
 
@@ -53,35 +54,5 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
         }
         routerWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
-    }
-}
-
-/// Menu-bar status icon: a mini MIDI DIN plug (ring + 5 pins) matching the
-/// app icon, drawn as a template image so it adapts to light/dark menu bars.
-private enum StatusIcon {
-    static func image() -> NSImage {
-        let points: CGFloat = 18
-        let image = NSImage(size: NSSize(width: points, height: points), flipped: false) { _ in
-            guard let ctx = NSGraphicsContext.current?.cgContext else { return false }
-            ctx.setFillColor(NSColor.black.cgColor)
-
-            let c = CGPoint(x: points / 2, y: points / 2)
-            // Bold plug silhouette: solid disc, dark pin holes knocked out.
-            ctx.fillEllipse(in: CGRect(x: c.x - 7.4, y: c.y - 7.4, width: 14.8, height: 14.8))
-            ctx.setBlendMode(.clear)
-            let pinDistance: CGFloat = 3.5
-            let pinRadius: CGFloat = 1.4
-            for angle in stride(from: -90.0, to: 270.0, by: 72.0) {
-                let rad = angle * .pi / 180
-                let px = c.x + pinDistance * CGFloat(cos(rad))
-                let py = c.y + pinDistance * CGFloat(sin(rad))
-                ctx.fillEllipse(in: CGRect(x: px - pinRadius, y: py - pinRadius,
-                                           width: pinRadius * 2, height: pinRadius * 2))
-            }
-            ctx.setBlendMode(.normal)
-            return true
-        }
-        image.isTemplate = true
-        return image
     }
 }
