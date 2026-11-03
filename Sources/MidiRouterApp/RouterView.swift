@@ -13,7 +13,7 @@ struct RouterView: View {
     /// Column/label widths size themselves to the longest name so nothing is
     /// truncated; hover tooltips always carry the full name as backup.
     private var sourceWidth: CGFloat {
-        Self.fit(engine.matrixSources.map(\.count), char: 7.0, min: 190, max: 320)
+        engine.matrixSources.map(\.count).map { Swift.min(320, Swift.max(190, CGFloat($0) * 7.0 + 16)) }.max() ?? 190
     }
     /// Per-column widths: each output column fits its own longest label
     /// (caption ~6.6pt/char + padding), so headers are never truncated.
