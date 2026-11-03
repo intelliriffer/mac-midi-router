@@ -61,21 +61,16 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
 private enum StatusIcon {
     static func image() -> NSImage {
         let points: CGFloat = 18
-        let pixels = 72   // 4x for crisp pin dots at menu-bar size
         let image = NSImage(size: NSSize(width: points, height: points), flipped: false) { _ in
             guard let ctx = NSGraphicsContext.current?.cgContext else { return false }
-            let scale = CGFloat(pixels) / points
-            ctx.scaleBy(x: scale, y: scale)
             ctx.setFillColor(NSColor.black.cgColor)
 
             let c = CGPoint(x: points / 2, y: points / 2)
-            // ring
-            ctx.setStrokeColor(NSColor.black.cgColor)
-            ctx.setLineWidth(1.9)
-            ctx.strokeEllipse(in: CGRect(x: c.x - 6.6, y: c.y - 6.6, width: 13.2, height: 13.2))
-            // five pins
-            let pinDistance: CGFloat = 3.3
-            let pinRadius: CGFloat = 1.05
+            // Bold plug silhouette: solid disc, dark pin holes knocked out.
+            ctx.fillEllipse(in: CGRect(x: c.x - 7.4, y: c.y - 7.4, width: 14.8, height: 14.8))
+            ctx.setBlendMode(.clear)
+            let pinDistance: CGFloat = 3.5
+            let pinRadius: CGFloat = 1.4
             for angle in stride(from: -90.0, to: 270.0, by: 72.0) {
                 let rad = angle * .pi / 180
                 let px = c.x + pinDistance * CGFloat(cos(rad))
@@ -83,6 +78,7 @@ private enum StatusIcon {
                 ctx.fillEllipse(in: CGRect(x: px - pinRadius, y: py - pinRadius,
                                            width: pinRadius * 2, height: pinRadius * 2))
             }
+            ctx.setBlendMode(.normal)
             return true
         }
         image.isTemplate = true
