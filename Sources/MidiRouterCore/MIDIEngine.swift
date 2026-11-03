@@ -30,14 +30,13 @@ final public class MIDIEngine: ObservableObject {
         mutateConfig { $0.currentRoutes = routes }
     }
 
-    /// Toggling an unknown source on creates an enabled route for it,
-    /// which matches the popover's checkbox semantics.
+    /// Toggling a source with no route is a no-op — the popover only controls
+    /// routes that exist (routes are created from the matrix cells, never from
+    /// the popover; ghost "enabled, zero destinations" rows are not allowed).
     public func setRouteEnabled(source: String, enabled: Bool) {
         mutateConfig { state in
             if let index = state.currentRoutes.firstIndex(where: { $0.source == source }) {
                 state.currentRoutes[index].enabled = enabled
-            } else if enabled {
-                state.currentRoutes.append(Route(source: source, enabled: true))
             }
         }
     }
@@ -86,7 +85,13 @@ final public class MIDIEngine: ObservableObject {
     /// CoreMIDI work unlocked, then take the lock again to commit results.
     public func performReconcile() {
         lock.lock()
-        let routes = config.currentRoutes
+        var routes = config.currentRoutes
+        // Ghost-route sweep: a route with zero destinations does nothing and
+        // must never linger (user feedback; popover no longer creates them).
+        if routes.contains(where: { $0.destinations.isEmpty }) {
+            routes.removeAll { $0.destinations.isEmpty }
+            config = AppState(currentRoutes: routes, presets: config.presets)
+        }
         let oldBoundSources = boundSources
         let oldBoundDestinations = boundDestinations
         lock.unlock()
@@ -144,8 +149,7 @@ final public class MIDIEngine: ObservableObject {
     }
 }
 
-extension MIDIEngine: MIDIIODelegate {
-    /// Fan-out path. Runs on CoreMIDI's read thread (or the fake's call site):
+extension MIDIEngine: MIDIIODelegate {    /// Fan-out path. Runs on CoreMIDI's read thread (or the fake's call site):
     /// only reads immutable snapshots under `lock`, writes through `io.send`.
     public func midi(_ io: MIDIIO, source name: String, received packets: [MIDIPacket]) {
         lock.lock()

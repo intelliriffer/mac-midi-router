@@ -66,13 +66,20 @@ final class EngineReconcileTests: XCTestCase {
         XCTAssertEqual(engine.connected.connectedDestinations, ["UM-1"])
     }
 
-    func testEnabledToggleOnUnknownSourceCreatesRoute() {
+    func testEnabledToggleOnUnknownSourceIsANoOp() {
         let io = FakeMIDIIO(presentSources: ["K88"], presentDestinations: ["UM-1"])
         let engine = boot(io: io, [])
         engine.setRouteEnabled(source: "K88", enabled: true)
-        let route = engine.config.currentRoutes.first { $0.source == "K88" }
-        XCTAssertEqual(route?.enabled, true)
-        XCTAssertEqual(io.sourceBindings, Set(["K88"]))
+        XCTAssertTrue(engine.config.currentRoutes.isEmpty)   // no ghost routes
+        XCTAssertTrue(io.sourceBindings.isEmpty)
+    }
+
+    func testReconcilePurgesExistingGhostRoutes() {
+        let io = FakeMIDIIO(presentSources: [], presentDestinations: [])
+        let engine = MIDIEngine(io: io, initialState: AppState(
+            currentRoutes: [Route(source: "Ghost", enabled: true)]))
+        engine.performReconcile()
+        XCTAssertTrue(engine.config.currentRoutes.isEmpty)   // sweep removes them
     }
 
     func testDuplicateNamesFlagged() {
