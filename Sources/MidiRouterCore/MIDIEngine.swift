@@ -155,3 +155,74 @@ extension MIDIEngine: MIDIIODelegate {
         DispatchQueue.main.async { [weak self] in self?.performReconcile() }
     }
 }
+
+extension MIDIEngine {
+    // MARK: Data for the matrix view
+
+    public var matrixSources: [String] {
+        Array(Set(io.sourceNames()).union(config.currentRoutes.map(\.source))).sorted()
+    }
+
+    public var matrixDestinations: [String] {
+        let configured = Set(config.currentRoutes.flatMap { $0.destinations.map(\.name) })
+        return Array(Set(io.destinationNames()).union(configured)).sorted()
+    }
+
+    public var matrixConnectedSources: Set<String> {
+        connected.connectedSources
+    }
+
+    public var matrixConnectedDestinations: Set<String> {
+        connected.connectedDestinations
+    }
+
+    // MARK: Grid-cell operations
+
+    /// Cell edit: nil filter removes, `.all`/`.channel(n)` sets the route entry.
+    public func setCell(source: String, dest: String, filter: ChannelFilter?) {
+        mutateConfig { state in
+            let routeIndex =
+                state.currentRoutes.firstIndex(where: { $0.source == source })
+            ?? {
+                state.currentRoutes.append(Route(source: source, enabled: true))
+                return state.currentRoutes.count - 1
+            }()
+
+            if let filter = filter {
+                let destinations = state.currentRoutes[routeIndex].destinations
+                if let destIndex = destinations.firstIndex(where: { $0.name == dest }) {
+                    state.currentRoutes[routeIndex].destinations[destIndex].filter = filter
+                } else {
+                    state.currentRoutes[routeIndex].destinations
+                        .append(Destination(name: dest, filter: filter))
+                }
+            } else if let destIndex = state.currentRoutes[routeIndex].destinations
+                          .firstIndex(where: { $0.name == dest }) {
+                state.currentRoutes[routeIndex].destinations.remove(at: destIndex)
+            }
+        }
+    }
+
+    public func cellLabel(source: String, dest: String) -> String {
+        config.currentRoutes.first(where: { $0.source == source })?
+            .destinations.first(where: { $0.name == dest })?.filter.label ?? "—"
+    }
+
+    // MARK: Presets (thin forwards into AppState, per spec §persistence)
+
+    public func savePreset(as name: String) {
+        mutateConfig { $0.savePreset(as: name) }
+    }
+
+    @discardableResult
+    public func loadPreset(_ name: String) -> Bool {
+        mutateConfig { $0.loadPreset(name) }
+        return true
+    }
+
+    @discardableResult
+    public func deletePreset(_ name: String) -> Bool {
+        mutateConfig { $0.deletePreset(name) }
+        return true
+    }
+}
