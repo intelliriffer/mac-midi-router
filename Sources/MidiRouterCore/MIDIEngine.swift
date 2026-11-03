@@ -21,6 +21,7 @@ final public class MIDIEngine: ObservableObject {
     public init(io: MIDIIO, initialState: AppState = .init()) {
         self.io = io
         self.config = initialState
+        io.delegate = self
     }
 
     // MARK: Configuration edits (main thread only)
@@ -119,5 +120,38 @@ final public class MIDIEngine: ObservableObject {
 
         let dup = (duplicateSourceNames + duplicateDestinationNames).sorted()
         warning = dup.isEmpty ? nil : "Duplicate port names: \(dup.joined(separator: ", ")). First match wins."
+    }
+}
+
+extension MIDIEngine: MIDIIODelegate {
+    /// Fan-out path. Runs on CoreMIDI's read thread (or the fake's call site):
+    /// only reads immutable snapshots under `lock`, writes through `io.send`.
+    public func midi(_ io: MIDIIO, source name: String, received packets: [MIDIPacket]) {
+        lock.lock()
+        var route: Route?
+        for r in config.currentRoutes where r.source == name && r.enabled {
+            route = r
+        }
+        let connectedTargets = connected.connectedDestinations
+        lock.unlock()
+        guard let route = route else { return }
+
+        for dest in route.destinations where connectedTargets.contains(dest.name) {
+            var filtered: [MIDIPacket] = []
+            filtered.reserveCapacity(packets.count)
+            for pkt in packets {
+                if let kept = applyFilter(pkt, dest.filter) {
+                    filtered.append(kept)
+                }
+            }
+            guard !filtered.isEmpty else { continue }
+            io.send(packets: filtered, to: dest.name)
+        }
+    }
+
+    /// Endpoint hotplug: CoreMIDI gives us the event, we just re-run the single
+    /// reconciler on the main actor (spec §hotplug: same code path as cold start).
+    public func midiEndpointsChanged(_ io: MIDIIO) {
+        DispatchQueue.main.async { [weak self] in self?.performReconcile() }
     }
 }
