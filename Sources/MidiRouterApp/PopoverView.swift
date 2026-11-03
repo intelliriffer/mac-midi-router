@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 import MidiRouterCore
 
 /// Quick route on/off + Open Router (spec §UI details).
@@ -44,6 +45,15 @@ struct PopoverView: View {
                 openRouter()
             }
             .controlSize(.large)
+
+            Divider()
+            Button(role: .destructive) {
+                closePopover()
+                NSApp.terminate(nil)
+            } label: {
+                Label("Quit mac-midi-router", systemImage: "power")
+            }
+            .keyboardShortcut("q", modifiers: .command)
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
