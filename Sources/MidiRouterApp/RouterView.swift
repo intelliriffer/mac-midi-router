@@ -246,7 +246,7 @@ struct MatrixCell: View {
             }
             .menuIndicator(.hidden)
             .menuStyle(.borderlessButton)
-            .help("\(source) → \(dest) · \(engine.cellLabel(source: source, dest: dest))")
+            .help("\(source) → \(dest) · \(engine.cellLabel(source: source, dest: dest))\(routeEnabled ? "" : " (route off)")")
         }
     }
 
@@ -266,9 +266,18 @@ struct MatrixCell: View {
         engine.cellLabel(source: source, dest: dest) == "—"
     }
 
+    /// The popover's quick on/off lives on the route; cells must reflect it.
+    private var routeEnabled: Bool {
+        engine.config.currentRoutes
+            .first { $0.source == source }?.enabled ?? false
+    }
+
     private var cellColor: Color {
         if isEmpty {
             return Color.primary.opacity(0.03)
+        }
+        if !routeEnabled {
+            return .gray.opacity(0.2)              // route muted off in router
         }
         if !engine.matrixConnectedDestinations.contains(dest) {
             return .gray.opacity(0.45)             // configured, device missing
