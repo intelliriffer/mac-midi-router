@@ -15,13 +15,9 @@ struct RouterView: View {
     private var sourceWidth: CGFloat {
         engine.matrixSources.map(\.count).map { Swift.min(320, Swift.max(190, CGFloat($0) * 7.0 + 16)) }.max() ?? 190
     }
-    /// Per-column widths: each output column fits its own longest label
-    /// (caption ~6.6pt/char + padding), so headers are never truncated.
-    private var columnWidths: [CGFloat] {
-        engine.matrixDestinations.map {
-            Swift.min(220, Swift.max(76, CGFloat($0.count) * 6.6 + 20))
-        }
-    }
+    /// Compact uniform columns; full names live in hover tooltips instead of
+    /// stretching the grid (user preference).
+    private let destWidth: CGFloat = 66
     private static let hairline = Color.primary.opacity(0.10)
 
     var body: some View {
@@ -111,11 +107,11 @@ struct RouterView: View {
             ForEach(engine.matrixDestinations.indices, id: \.self) { index in
                 Text(engine.matrixDestinations[index])
                     .font(.caption)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.6)
-                    .multilineTextAlignment(.center)
-                    .frame(width: columnWidths[index], height: headerHeight)
-                    .help(engine.matrixDestinations[index])
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .minimumScaleFactor(0.7)
+                    .frame(width: destWidth, height: headerHeight)
+                    .help(engine.matrixDestinations[index])   // full name on hover
                     .overlay(alignment: .trailing) {
                         columnLine(last: index == engine.matrixDestinations.count - 1)
                     }
@@ -129,7 +125,7 @@ struct RouterView: View {
             ForEach(engine.matrixDestinations.indices, id: \.self) { index in
                 MatrixCell(engine: engine, source: source,
                            dest: engine.matrixDestinations[index])
-                    .frame(width: columnWidths[index], height: rowHeight)
+                    .frame(width: destWidth, height: rowHeight)
                     .overlay(alignment: .trailing) {
                         columnLine(last: index == engine.matrixDestinations.count - 1)
                     }
@@ -221,7 +217,7 @@ struct MatrixCell: View {
             }
             .menuIndicator(.hidden)
             .menuStyle(.borderlessButton)
-            .help("\(source) → \(dest) (\(engine.cellLabel(source: source, dest: dest)))")
+            .help("\(source) → \(dest) · \(engine.cellLabel(source: source, dest: dest))")
         }
     }
 
