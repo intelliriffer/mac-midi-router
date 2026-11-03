@@ -83,7 +83,7 @@ struct RouterView: View {
             Text(source)
                 .font(.callout)
                 .lineLimit(1)
-                .minimumScaleFactor(0.7)
+                .truncationMode(.tail)
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 8)
@@ -110,7 +110,6 @@ struct RouterView: View {
                     .font(.caption)
                     .lineLimit(1)
                     .truncationMode(.tail)
-                    .minimumScaleFactor(0.7)
                     .frame(width: destWidth, height: headerHeight)
                     .help(engine.matrixDestinations[index])   // full name on hover
                     .overlay(alignment: .trailing) {
