@@ -81,16 +81,22 @@ final public class MIDIEngine: ObservableObject {
 
     /// Single binding algorithm (spec §hotplug): everything configured and
     /// currently present gets re-bound; everything not present keeps its
-    /// configuration but shows as disconnected. Idempotent.
+    /// configuration but shows as disconnected. Idempotent. The engine lock is
+    /// never held across `io` calls: we take one snapshot at the start, run all
+    /// CoreMIDI work unlocked, then take the lock again to commit results.
     public func performReconcile() {
-        lock.lock(); defer { lock.unlock() }
+        lock.lock()
+        let routes = config.currentRoutes
+        let oldBoundSources = boundSources
+        let oldBoundDestinations = boundDestinations
+        lock.unlock()
 
         let presentSources = Set(io.sourceNames())
         let presentDestinations = Set(io.destinationNames())
 
         var wantSources: Set<String> = []
         var wantDestinations: Set<String> = []
-        for route in config.currentRoutes where route.enabled {
+        for route in routes where route.enabled {
             if presentSources.contains(route.source) {
                 wantSources.insert(route.source)
             }
@@ -99,24 +105,37 @@ final public class MIDIEngine: ObservableObject {
             }
         }
 
-        for name in boundSources.subtracting(wantSources) {
+        var nextBoundSources = oldBoundSources.intersection(wantSources)
+        var nextBoundDestinations = oldBoundDestinations.intersection(wantDestinations)
+
+        for name in oldBoundSources.subtracting(wantSources) {
             io.unbind(source: name)
         }
-        for name in wantSources.subtracting(boundSources) {
-            _ = io.bind(source: name)
+        // A failed bind is NOT recorded as bound/connected, so the next
+        // reconcile retries it naturally.
+        for name in wantSources.subtracting(oldBoundSources) {
+            if io.bind(source: name) {
+                nextBoundSources.insert(name)
+            }
         }
-        for name in boundDestinations.subtracting(wantDestinations) {
+        for name in oldBoundDestinations.subtracting(wantDestinations) {
             io.unbind(destination: name)
         }
-        for name in wantDestinations.subtracting(boundDestinations) {
-            _ = io.bind(destination: name)
+        for name in wantDestinations.subtracting(oldBoundDestinations) {
+            if io.bind(destination: name) {
+                nextBoundDestinations.insert(name)
+            }
         }
-        boundSources = wantSources
-        boundDestinations = wantDestinations
 
-        let next = BindingState(connectedSources: wantSources,
-                                connectedDestinations: wantDestinations)
-        connected = next
+        lock.lock()
+        boundSources = nextBoundSources
+        boundDestinations = nextBoundDestinations
+        lock.unlock()
+
+        // @Published properties are written here and performReconcile() is
+        // always called from the main actor (spec §threading).
+        connected = BindingState(connectedSources: nextBoundSources,
+                                 connectedDestinations: nextBoundDestinations)
 
         let dup = (duplicateSourceNames + duplicateDestinationNames).sorted()
         warning = dup.isEmpty ? nil : "Duplicate port names: \(dup.joined(separator: ", ")). First match wins."
@@ -128,10 +147,7 @@ extension MIDIEngine: MIDIIODelegate {
     /// only reads immutable snapshots under `lock`, writes through `io.send`.
     public func midi(_ io: MIDIIO, source name: String, received packets: [MIDIPacket]) {
         lock.lock()
-        var route: Route?
-        for r in config.currentRoutes where r.source == name && r.enabled {
-            route = r
-        }
+        let route = config.currentRoutes.first(where: { $0.source == name && $0.enabled })
         let connectedTargets = connected.connectedDestinations
         lock.unlock()
         guard let route = route else { return }
@@ -216,13 +232,15 @@ extension MIDIEngine {
 
     @discardableResult
     public func loadPreset(_ name: String) -> Bool {
-        mutateConfig { $0.loadPreset(name) }
-        return true
+        var ok = false
+        mutateConfig { ok = $0.loadPreset(name) }
+        return ok
     }
 
     @discardableResult
     public func deletePreset(_ name: String) -> Bool {
-        mutateConfig { $0.deletePreset(name) }
-        return true
+        var ok = false
+        mutateConfig { ok = $0.deletePreset(name) }
+        return ok
     }
 }

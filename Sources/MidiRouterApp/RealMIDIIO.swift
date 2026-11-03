@@ -10,6 +10,9 @@ final public class RealMIDIIO: NSObject, MIDIIO {
     public weak var delegate: MIDIIODelegate?
 
     private var client: MIDIClientRef = 0
+    // Guards inputPorts/outputPorts/connectionBoxes: mutated on the main
+    // thread (bind/unbind) and read from the CoreMIDI read thread (send()).
+    private let midiLock = NSLock()
     private var inputPorts: [String: MIDIPortRef] = [:]
     private var outputPorts: [String: MIDIPortRef] = [:]
     // MIDIPortConnectSource's per-connection refCon carries the source name;
@@ -20,16 +23,31 @@ final public class RealMIDIIO: NSObject, MIDIIO {
     public override init() {
         super.init()
         var client = self.client
-        MIDIClientCreate("mac-midi-router" as CFString,
-                         notificationProc,
-                         Unmanaged.passUnretained(self).toOpaque(),
-                         &client)
+        let status = MIDIClientCreate("mac-midi-router" as CFString,
+                                      notificationProc,
+                                      Unmanaged.passUnretained(self).toOpaque(),
+                                      &client)
+        if status != noErr {
+            // CoreMIDI client creation failed: keep client at 0 so every
+            // subsequent bind call fails and ports stay disconnected.
+            NSLog("RealMIDIIO: MIDIClientCreate failed (OSStatus %d) — binds will fail")
+            client = 0
+        }
         self.client = client
     }
 
     deinit {
-        for (_, port) in inputPorts { MIDIPortDispose(port) }
-        for (_, port) in outputPorts { MIDIPortDispose(port) }
+        midiLock.lock()
+        let inputs = inputPorts
+        let outputs = outputPorts
+        let boxes = connectionBoxes
+        inputPorts = [:]
+        outputPorts = [:]
+        connectionBoxes = [:]
+        midiLock.unlock()
+        for (_, port) in inputs { MIDIPortDispose(port) }
+        for (_, port) in outputs { MIDIPortDispose(port) }
+        for (_, box) in boxes { box.release() }
         if client != 0 {
             MIDIClientDispose(client)
         }
@@ -71,6 +89,8 @@ final public class RealMIDIIO: NSObject, MIDIIO {
 
     @discardableResult
     public func bind(source name: String) -> Bool {
+        midiLock.lock()
+        defer { midiLock.unlock() }
         guard inputPorts[name] == nil, let endpoint = sourceEndpointRef(named: name)
         else { return false }
         var port: MIDIPortRef = 0
@@ -91,6 +111,8 @@ final public class RealMIDIIO: NSObject, MIDIIO {
 
     @discardableResult
     public func bind(destination name: String) -> Bool {
+        midiLock.lock()
+        defer { midiLock.unlock() }
         guard outputPorts[name] == nil else { return true }   // idempotent
         var port: MIDIPortRef = 0
         guard MIDIOutputPortCreate(client, name as CFString, &port) == noErr
@@ -100,6 +122,8 @@ final public class RealMIDIIO: NSObject, MIDIIO {
     }
 
     public func unbind(source name: String) {
+        midiLock.lock()
+        defer { midiLock.unlock() }
         if let port = inputPorts.removeValue(forKey: name) {
             MIDIPortDispose(port)
         }
@@ -107,6 +131,8 @@ final public class RealMIDIIO: NSObject, MIDIIO {
     }
 
     public func unbind(destination name: String) {
+        midiLock.lock()
+        defer { midiLock.unlock() }
         if let port = outputPorts.removeValue(forKey: name) {
             MIDIPortDispose(port)
         }
@@ -115,19 +141,37 @@ final public class RealMIDIIO: NSObject, MIDIIO {
     // MARK: Sending
 
     public func send(packets: [MidiRouterCore.MIDIPacket], to destination: String) {
-        guard let port = outputPorts[destination],
-              let endpoint = destinationEndpointRef(named: destination)
-        else { return }
+        // Snapshot the port + endpoint under the lock into locals, then release
+        // before building/sending: MIDISend must never run while midiLock is
+        // held (it can block and the read thread may be waiting).
+        midiLock.lock()
+        let foundPort = outputPorts[destination]
+        let endpoint = destinationEndpointRef(named: destination)
+        midiLock.unlock()
+        guard let port = foundPort, let endpoint = endpoint else { return }
 
-        var list = MIDIPacketList(numPackets: 0, packet: MIDIPacket())
-        var cursor = MIDIPacketListInit(&list)
+        // Build the packet list in a properly sized heap buffer (max packet
+        // list size), never in a stack struct claiming 64 KiB capacity.
+        let capacity = 65536
+        let buffer = UnsafeMutableRawPointer.allocate(
+            byteCount: capacity, alignment: MemoryLayout<MIDIPacketList>.alignment)
+        defer { buffer.deallocate() }
+        let list = buffer.assumingMemoryBound(to: MIDIPacketList.self)
+        var cursor = MIDIPacketListInit(list)
         for packet in packets {
-            cursor = MIDIPacketListAdd(&list, 65536, cursor,
-                                       packet.timestamp,
-                                       packet.bytes.count,
-                                       packet.bytes)
+            let next: UnsafeMutablePointer<CoreMIDI.MIDIPacket>? =
+                MIDIPacketListAdd(list, capacity, cursor,
+                                  packet.timestamp,
+                                  packet.bytes.count,
+                                  packet.bytes)
+            guard let next = next else {
+                // List is full: drop the remainder silently (defensive; one
+                // list never legitimately exceeds 64 KiB).
+                break
+            }
+            cursor = next
         }
-        MIDISend(port, endpoint, &list)
+        MIDISend(port, endpoint, list)
     }
 }
 
@@ -151,10 +195,16 @@ private let readProc: MIDIReadProc = { packetList, readRefCon, sourceRefCon in
     let io = Unmanaged<RealMIDIIO>.fromOpaque(readRefCon).takeUnretainedValue()
     let name = unsafeBitCast(sourceRefCon, to: NSString.self) as String
     var packets: [MidiRouterCore.MIDIPacket] = []
-    var packet = packetList.pointee.packet
-    for _ in 0..<packetList.pointee.numPackets {
-        packets.append(collectPacket(packet))
-        packet = MIDIPacketNext(&packet).pointee
+    // Walk the packets IN THE ORIGINAL list: MIDIPacketNext(p) advances within
+    // the caller's variable-length memory, so the walk pointer must move over
+    // the real bytes of packetList — never over a local struct copy.
+    if let packetOffset = MemoryLayout<MIDIPacketList>.offset(of: \.packet) {
+        var p = UnsafeRawPointer(packetList).advanced(by: packetOffset)
+        for _ in 0..<Int(packetList.pointee.numPackets) {
+            let pkt = p.assumingMemoryBound(to: CoreMIDI.MIDIPacket.self)
+            packets.append(collectPacket(pkt.pointee))
+            p = UnsafeRawPointer(MIDIPacketNext(pkt))
+        }
     }
     io.callbackQueue.async {
         io.delegate?.midi(io, source: name, received: packets)
@@ -162,11 +212,14 @@ private let readProc: MIDIReadProc = { packetList, readRefCon, sourceRefCon in
 }
 
 /// A MIDIPacket is a heterogeneous struct; copy `p.length` bytes out of the
-/// fixed 256-byte `p.data` tuple.
+/// fixed data tuple, clamping the length field so a malformed packet can never
+/// read past the 256 data bytes.
 private func collectPacket(_ p: CoreMIDI.MIDIPacket) -> MidiRouterCore.MIDIPacket {
+    let dataBytes = MemoryLayout.size(ofValue: p.data)
+    let n = min(Int(p.length), dataBytes)
     var bytes: [UInt8] = []
-    bytes.reserveCapacity(Int(p.length))
-    for i in 0..<Int(p.length) {
+    bytes.reserveCapacity(n)
+    for i in 0..<n {
         withUnsafeBytes(of: p.data) { raw in
             bytes.append(raw.load(fromByteOffset: i, as: UInt8.self))
         }

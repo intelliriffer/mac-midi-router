@@ -67,4 +67,23 @@ final class PresetStoreTests: XCTestCase {
         // Current enabled=false wins over the snapshot's true (per spec: keep flags).
         XCTAssertEqual(state.currentRoutes[0].enabled, false)
     }
+
+    func testLoadPresetWithDuplicateSourceCurrentRoutesDoesNotTrap() {
+        var state = AppState()
+        let saved = [Route(source: "K", enabled: true,
+                           destinations: [Destination(name: "P", filter: .all)])]
+        state.currentRoutes = saved
+        state.savePreset(as: "gig")
+
+        state.currentRoutes = [
+            Route(source: "K", enabled: false,
+                  destinations: [Destination(name: "P", filter: .all)]),
+            Route(source: "K", enabled: true,
+                  destinations: [Destination(name: "P", filter: .all)])]
+        // Duplicate sources no longer trap Dictionary(uniqueKeysWithValues:);
+        // the FIRST match's flag survives.
+        XCTAssertTrue(state.loadPreset("gig"))
+        XCTAssertEqual(state.currentRoutes.count, 1)
+        XCTAssertEqual(state.currentRoutes[0].enabled, false)
+    }
 }

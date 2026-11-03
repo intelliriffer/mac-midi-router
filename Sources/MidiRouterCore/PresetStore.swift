@@ -20,7 +20,12 @@ public enum PresetStore {
             NSLog("PresetStore: state.json missing or corrupt — starting empty")
             return AppState()
         }
-        return state
+        var clean = state
+        // Sanitize persisted routes: disk contents may still carry duplicate
+        // source entries; collapse them keeping the FIRST ("first match wins").
+        var seen = Set<String>()
+        clean.currentRoutes = clean.currentRoutes.filter { seen.insert($0.source).inserted }
+        return clean
     }
 }
 
@@ -38,8 +43,11 @@ public extension AppState {
     @discardableResult
     mutating func loadPreset(_ name: String) -> Bool {
         guard let routes = presets[name] else { return false }
+        // Duplicate sources in currentRoutes are possible (hand-edited or older
+        // state); "first match wins" — keep the FIRST entry's flag, never trap.
         let currentFlags = Dictionary(
-            uniqueKeysWithValues: currentRoutes.map { ($0.source, $0.enabled) })
+            currentRoutes.map { ($0.source, $0.enabled) },
+            uniquingKeysWith: { first, _ in first })
         currentRoutes = routes.map { route in
             var r = route
             if let flag = currentFlags[r.source] { r.enabled = flag }
