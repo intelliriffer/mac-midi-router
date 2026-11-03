@@ -51,7 +51,7 @@ struct PopoverView: View {
                 closePopover()
                 NSApp.terminate(nil)
             } label: {
-                Label("Quit mac-midi-router", systemImage: "power")
+                Label("Quit", systemImage: "power")
             }
             .keyboardShortcut("q", modifiers: .command)
         }
