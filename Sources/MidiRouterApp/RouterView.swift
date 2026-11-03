@@ -41,6 +41,7 @@ struct RouterView: View {
             }
             .frame(maxHeight: .infinity)
 
+            Divider()
             presetsControls
         }
         .padding()
@@ -149,32 +150,61 @@ struct RouterView: View {
         }
     }
 
-    // MARK: presets
+    // MARK: presets — compact toolbar, menus must not stretch (fixedSize)
 
     private var presetsControls: some View {
-        HStack {
-            TextField("Preset name", text: $presetName)
-                .frame(width: 220)
-            Button("Save Preset") {
-                engine.savePreset(as: presetName)
-                presetName = ""
-            }
-            Menu("Load Preset") {
-                let names = engine.config.presets.keys.sorted()
-                if names.isEmpty { Text("None yet") }
-                ForEach(names, id: \.self) { name in
+        HStack(spacing: 8) {
+            TextField("New preset name…", text: $presetName)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 190)
+                .onSubmit(savePreset)
+
+            Button("Save Preset", action: savePreset)
+                .disabled(saveIsBlocked)
+
+            Menu {
+                ForEach(engine.config.presets.keys.sorted(), id: \.self) { name in
                     Button(name) { engine.loadPreset(name) }
                 }
+            } label: {
+                Label("Load", systemImage: "square.and.arrow.down")
             }
-            Menu("Delete Preset") {
-                let names = engine.config.presets.keys.sorted()
-                if names.isEmpty { Text("None yet") }
-                ForEach(names, id: \.self) { name in
+            .fixedSize()
+            .disabled(engine.config.presets.isEmpty)
+
+            Menu {
+                ForEach(engine.config.presets.keys.sorted(), id: \.self) { name in
                     Button(name) { engine.deletePreset(name) }
                 }
+            } label: {
+                Label("Delete", systemImage: "trash")
             }
+            .fixedSize()
+            .disabled(engine.config.presets.isEmpty)
+
+            Spacer()
+
+            Text(presetSummary)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .help("Load keeps your current on/off switches; routes come from the preset")
         }
-        .padding(.horizontal)
+        .padding(.horizontal, 4)
+    }
+
+    private var saveIsBlocked: Bool {
+        presetName.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    private var presetSummary: String {
+        let count = engine.config.presets.count
+        return count == 0 ? "No presets saved yet" : "\(count) preset\(count == 1 ? "" : "s") saved"
+    }
+
+    private func savePreset() {
+        guard !saveIsBlocked else { return }
+        engine.savePreset(as: presetName)
+        presetName = ""
     }
 }
 
