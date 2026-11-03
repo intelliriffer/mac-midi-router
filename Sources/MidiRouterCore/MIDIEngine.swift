@@ -130,12 +130,14 @@ final public class MIDIEngine: ObservableObject {
         lock.lock()
         boundSources = nextBoundSources
         boundDestinations = nextBoundDestinations
+        connected = BindingState(connectedSources: nextBoundSources,
+                                 connectedDestinations: nextBoundDestinations)
         lock.unlock()
 
         // @Published properties are written here and performReconcile() is
-        // always called from the main actor (spec §threading).
-        connected = BindingState(connectedSources: nextBoundSources,
-                                 connectedDestinations: nextBoundDestinations)
+        // always called from the main actor (spec §threading); `connected`
+        // is written under `lock` since midi(_:source:received:) reads it
+        // on the CoreMIDI read thread.
 
         let dup = (duplicateSourceNames + duplicateDestinationNames).sorted()
         warning = dup.isEmpty ? nil : "Duplicate port names: \(dup.joined(separator: ", ")). First match wins."
