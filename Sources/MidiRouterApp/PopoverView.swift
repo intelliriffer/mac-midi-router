@@ -1,0 +1,61 @@
+import SwiftUI
+import AppKit
+import MidiRouterCore
+
+/// Quick route on/off + Open Router (spec §UI details).
+struct PopoverView: View {
+    @ObservedObject var engine: MIDIEngine
+    let openRouter: () -> Void
+    let closePopover: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if let warning = engine.warning {
+                Label(warning, systemImage: "exclamationmark.triangle")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+
+            ForEach(engine.config.currentRoutes, id: \.source) { route in
+                HStack {
+                    Toggle(route.source, isOn: Binding(
+                        get: {
+                            engine.config.currentRoutes
+                                .first { $0.source == route.source }?.enabled ?? false
+                        },
+                        set: {
+                            engine.setRouteEnabled(source: route.source, enabled: $0)
+                        }))
+                    .toggleStyle(.switch)
+                    Spacer()
+                    Text("\(route.destinations.count) →")
+                        .foregroundStyle(.secondary)
+                        .opacity(route.enabled ? 1 : 0.4)
+                }
+            }
+
+            if engine.config.currentRoutes.isEmpty {
+                Text("No routes yet — open the Router.")
+                    .foregroundStyle(.secondary)
+            }
+
+            Divider()
+            Button("Open Router…") {
+                closePopover()
+                openRouter()
+            }
+            .controlSize(.large)
+
+            Divider()
+            Button(role: .destructive) {
+                closePopover()
+                NSApp.terminate(nil)
+            } label: {
+                Label("Quit", systemImage: "power")
+            }
+            .keyboardShortcut("q", modifiers: .command)
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}

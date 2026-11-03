@@ -8,3 +8,4 @@ dist/
 .pi/
 skills-catalog.md
 
+.build/
