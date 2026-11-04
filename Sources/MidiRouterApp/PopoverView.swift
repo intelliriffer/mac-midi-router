@@ -6,6 +6,7 @@ import MidiRouterCore
 struct PopoverView: View {
     @ObservedObject var engine: MIDIEngine
     let openRouter: () -> Void
+    let openAbout: () -> Void
     let closePopover: () -> Void
 
     var body: some View {
@@ -45,6 +46,13 @@ struct PopoverView: View {
                 openRouter()
             }
             .controlSize(.large)
+
+            Button {
+                closePopover()
+                openAbout()
+            } label: {
+                Label("About mac-midi-router", systemImage: "info.circle")
+            }
 
             Divider()
             Button(role: .destructive) {

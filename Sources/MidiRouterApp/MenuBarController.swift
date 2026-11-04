@@ -7,6 +7,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
     private let popover = NSPopover()
     private var statusItem: NSStatusItem?
     private var routerWindow: NSWindow?
+    private var aboutWindow: NSWindow?
 
     init(engine: MIDIEngine) {
         self.engine = engine
@@ -16,6 +17,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
         popover.contentViewController = NSHostingController(rootView: PopoverView(
             engine: engine,
             openRouter: { [weak self] in self?.openRouterWindow() },
+            openAbout: { [weak self] in self?.openAboutWindow() },
             closePopover: { [weak self] in self?.popover.performClose(nil) }
         ))
     }
@@ -37,6 +39,22 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
         } else {
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         }
+    }
+
+    /// Called from the popover's "About" row.
+    func openAboutWindow() {
+        if aboutWindow == nil {
+            let window = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 320, height: 460),
+                styleMask: [.titled, .closable],
+                backing: .buffered, defer: false)
+            window.title = "About mac-midi-router"
+            window.isReleasedWhenClosed = false
+            window.contentView = NSHostingView(rootView: AboutView())
+            aboutWindow = window
+        }
+        aboutWindow?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     /// Called from the popover's "Open Router" button.
