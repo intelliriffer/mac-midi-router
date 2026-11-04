@@ -12,7 +12,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
     init(engine: MIDIEngine) {
         self.engine = engine
         super.init()
-        popover.contentSize = NSSize(width: 360, height: 340)
+        popover.contentSize = NSSize(width: 300, height: 300)
         popover.behavior = .transient
         popover.contentViewController = NSHostingController(rootView: PopoverView(
             engine: engine,
