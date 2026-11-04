@@ -24,11 +24,12 @@ struct PopoverView: View {
 
     /// The route rows themselves — hugs its content; wrapped in a ScrollView
     /// by the body only when the list would exceed the screen cap.
+    /// Switch first, then the source name (user preference).
     private var routeListContent: some View {
         VStack(alignment: .leading, spacing: 8) {
             ForEach(engine.config.currentRoutes, id: \.source) { route in
-                HStack {
-                    Toggle(route.source, isOn: Binding(
+                HStack(spacing: 8) {
+                    Toggle("", isOn: Binding(
                         get: {
                             engine.config.currentRoutes
                                 .first { $0.source == route.source }?.enabled ?? false
@@ -37,10 +38,20 @@ struct PopoverView: View {
                             engine.setRouteEnabled(source: route.source, enabled: $0)
                         }))
                     .toggleStyle(.switch)
+                    .labelsHidden()
+                    .help("Route \"\(route.source)\" on/off")
+
+                    Text(route.source)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .minimumScaleFactor(0.8)
+
                     Spacer()
+
                     Text("\(route.destinations.count) →")
                         .foregroundStyle(.secondary)
                         .opacity(route.enabled ? 1 : 0.4)
+                        .help("Route \"\(route.source)\" on/off")
                 }
             }
 
@@ -77,6 +88,7 @@ struct PopoverView: View {
                 } label: {
                     Label("About", systemImage: "info.circle")
                 }
+                .controlSize(.small)
                 .help("About mac-midi-router — version, author, license")
 
                 Button {
@@ -85,6 +97,7 @@ struct PopoverView: View {
                 } label: {
                     Label("Router", systemImage: "square.grid.3x3")
                 }
+                .controlSize(.small)
 
                 Button(role: .destructive) {
                     closePopover()
@@ -92,6 +105,7 @@ struct PopoverView: View {
                 } label: {
                     Label("Quit", systemImage: "power")
                 }
+                .controlSize(.small)
                 .keyboardShortcut("q", modifiers: .command)
                 .help("Quit the app (\u{2318}Q)")
             }
