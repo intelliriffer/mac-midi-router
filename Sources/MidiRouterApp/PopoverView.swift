@@ -41,14 +41,22 @@ struct PopoverView: View {
             }
 
             Divider()
-                HStack {
-                    Button {
-                        closePopover()
-                        openAbout()
-                    } label: {
-                        Label("About", systemImage: "info.circle")
-                    }
+            HStack {
+                Button {
+                    closePopover()
+                    openAbout()
+                } label: {
+                    Label("About", systemImage: "info.circle")
+                }
                 .help("About mac-midi-router — version, author, license")
+
+                Spacer()
+
+                Button("Router") {
+                    closePopover()
+                    openRouter()
+                }
+                .controlSize(.large)
 
                 Spacer()
 
@@ -61,12 +69,6 @@ struct PopoverView: View {
                 .keyboardShortcut("q", modifiers: .command)
                 .help("Quit the app (\u{2318}Q)")
             }
-            Button("Open Router…") {
-                closePopover()
-                openRouter()
-            }
-            .controlSize(.large)
-            .frame(maxWidth: .infinity)
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
