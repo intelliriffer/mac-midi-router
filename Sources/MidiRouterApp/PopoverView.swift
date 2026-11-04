@@ -22,34 +22,34 @@ struct PopoverView: View {
         return estimated > maxRoutesHeight
     }
 
-    private var routeList: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(engine.config.currentRoutes, id: \.source) { route in
-                    HStack {
-                        Toggle(route.source, isOn: Binding(
-                            get: {
-                                engine.config.currentRoutes
-                                    .first { $0.source == route.source }?.enabled ?? false
-                            },
-                            set: {
-                                engine.setRouteEnabled(source: route.source, enabled: $0)
-                            }))
-                        .toggleStyle(.switch)
-                        Spacer()
-                        Text("\(route.destinations.count) →")
-                            .foregroundStyle(.secondary)
-                            .opacity(route.enabled ? 1 : 0.4)
-                    }
-                }
-
-                if engine.config.currentRoutes.isEmpty {
-                    Text("No routes yet — open the Router.")
+    /// The route rows themselves — hugs its content; wrapped in a ScrollView
+    /// by the body only when the list would exceed the screen cap.
+    private var routeListContent: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(engine.config.currentRoutes, id: \.source) { route in
+                HStack {
+                    Toggle(route.source, isOn: Binding(
+                        get: {
+                            engine.config.currentRoutes
+                                .first { $0.source == route.source }?.enabled ?? false
+                        },
+                        set: {
+                            engine.setRouteEnabled(source: route.source, enabled: $0)
+                        }))
+                    .toggleStyle(.switch)
+                    Spacer()
+                    Text("\(route.destinations.count) →")
                         .foregroundStyle(.secondary)
+                        .opacity(route.enabled ? 1 : 0.4)
                 }
             }
-            .padding(.vertical, 1)
+
+            if engine.config.currentRoutes.isEmpty {
+                Text("No routes yet — open the Router.")
+                    .foregroundStyle(.secondary)
+            }
         }
+        .padding(.vertical, 1)
     }
 
     var body: some View {
@@ -61,11 +61,12 @@ struct PopoverView: View {
             }
 
             if routesWouldOverflow {
-                routeList
-                    .frame(maxHeight: maxRoutesHeight)
+                ScrollView {
+                    routeListContent
+                }
+                .frame(maxHeight: maxRoutesHeight)
             } else {
-                routeList
-                    .fixedSize(horizontal: false, vertical: true)   // hug the content
+                routeListContent
             }
 
             Divider()
