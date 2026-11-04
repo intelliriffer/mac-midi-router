@@ -38,17 +38,19 @@ struct PopoverView: View {
                             engine.setRouteEnabled(source: route.source, enabled: $0)
                         }))
                     .toggleStyle(.switch)
+                    .controlSize(.small)          // smaller switch chrome; label is hidden anyway
                     .labelsHidden()
                     .help("Route \"\(route.source)\" on/off")
 
                     Text(route.source)
+                        .font(.body)               // same size as the footer buttons
                         .lineLimit(1)
                         .truncationMode(.tail)
-                        .minimumScaleFactor(0.8)
 
                     Spacer()
 
                     Text("\(route.destinations.count) →")
+                        .font(.callout)
                         .foregroundStyle(.secondary)
                         .opacity(route.enabled ? 1 : 0.4)
                         .help("Route \"\(route.source)\" on/off")
