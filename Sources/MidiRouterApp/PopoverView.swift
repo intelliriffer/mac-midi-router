@@ -97,6 +97,6 @@ struct PopoverView: View {
             }
         }
         .padding()
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(width: 300, alignment: .leading)   // fixed width, height hugs content
     }
 }

@@ -12,9 +12,8 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
     init(engine: MIDIEngine) {
         self.engine = engine
         super.init()
-        // Width fixed; height follows content (capped by PopoverView to the screen).
-        popover.contentSize = NSSize(width: 300, height: 200)
-        popover.behavior = .transient
+        // No contentSize: the popover tracks the SwiftUI content — small with
+        // few routes, growing as routes are added (capped by PopoverView).
         popover.contentViewController = NSHostingController(rootView: PopoverView(
             engine: engine,
             openRouter: { [weak self] in self?.openRouterWindow() },
