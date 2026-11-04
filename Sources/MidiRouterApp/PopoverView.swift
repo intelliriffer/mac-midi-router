@@ -9,6 +9,13 @@ struct PopoverView: View {
     let openAbout: () -> Void
     let closePopover: () -> Void
 
+    /// The route list grows with the number of ports, then scrolls instead of
+    /// overflowing the screen (chrome + footer + margins reserved).
+    private var maxRoutesHeight: CGFloat {
+        let screen = NSScreen.main?.visibleFrame.height ?? 900
+        return max(120, screen - 280)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             if let warning = engine.warning {
@@ -17,28 +24,34 @@ struct PopoverView: View {
                     .foregroundStyle(.orange)
             }
 
-            ForEach(engine.config.currentRoutes, id: \.source) { route in
-                HStack {
-                    Toggle(route.source, isOn: Binding(
-                        get: {
-                            engine.config.currentRoutes
-                                .first { $0.source == route.source }?.enabled ?? false
-                        },
-                        set: {
-                            engine.setRouteEnabled(source: route.source, enabled: $0)
-                        }))
-                    .toggleStyle(.switch)
-                    Spacer()
-                    Text("\(route.destinations.count) →")
-                        .foregroundStyle(.secondary)
-                        .opacity(route.enabled ? 1 : 0.4)
-                }
-            }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(engine.config.currentRoutes, id: \.source) { route in
+                        HStack {
+                            Toggle(route.source, isOn: Binding(
+                                get: {
+                                    engine.config.currentRoutes
+                                        .first { $0.source == route.source }?.enabled ?? false
+                                },
+                                set: {
+                                    engine.setRouteEnabled(source: route.source, enabled: $0)
+                                }))
+                            .toggleStyle(.switch)
+                            Spacer()
+                            Text("\(route.destinations.count) →")
+                                .foregroundStyle(.secondary)
+                                .opacity(route.enabled ? 1 : 0.4)
+                        }
+                    }
 
-            if engine.config.currentRoutes.isEmpty {
-                Text("No routes yet — open the Router.")
-                    .foregroundStyle(.secondary)
+                    if engine.config.currentRoutes.isEmpty {
+                        Text("No routes yet — open the Router.")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.vertical, 1)
             }
+            .frame(maxHeight: maxRoutesHeight)
 
             Divider()
             HStack(spacing: 12) {
