@@ -78,9 +78,11 @@ struct PopoverView: View {
                 }
                 .help("About mac-midi-router — version, author, license")
 
-                Button("Router") {
+                Button {
                     closePopover()
                     openRouter()
+                } label: {
+                    Label("Router", systemImage: "square.grid.3x3")
                 }
 
                 Button(role: .destructive) {
