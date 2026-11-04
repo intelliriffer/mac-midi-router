@@ -41,7 +41,7 @@ struct PopoverView: View {
             }
 
             Divider()
-            HStack {
+            HStack(spacing: 12) {
                 Button {
                     closePopover()
                     openAbout()
@@ -50,15 +50,11 @@ struct PopoverView: View {
                 }
                 .help("About mac-midi-router — version, author, license")
 
-                Spacer()
-
                 Button("Router") {
                     closePopover()
                     openRouter()
                 }
                 .controlSize(.large)
-
-                Spacer()
 
                 Button(role: .destructive) {
                     closePopover()
