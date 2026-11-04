@@ -41,27 +41,32 @@ struct PopoverView: View {
             }
 
             Divider()
+                HStack {
+                    Button {
+                        closePopover()
+                        openAbout()
+                    } label: {
+                        Label("About", systemImage: "info.circle")
+                    }
+                .help("About mac-midi-router — version, author, license")
+
+                Spacer()
+
+                Button(role: .destructive) {
+                    closePopover()
+                    NSApp.terminate(nil)
+                } label: {
+                    Label("Quit", systemImage: "power")
+                }
+                .keyboardShortcut("q", modifiers: .command)
+                .help("Quit the app (\u{2318}Q)")
+            }
             Button("Open Router…") {
                 closePopover()
                 openRouter()
             }
             .controlSize(.large)
-
-            Button {
-                closePopover()
-                openAbout()
-            } label: {
-                Label("About mac-midi-router", systemImage: "info.circle")
-            }
-
-            Divider()
-            Button(role: .destructive) {
-                closePopover()
-                NSApp.terminate(nil)
-            } label: {
-                Label("Quit", systemImage: "power")
-            }
-            .keyboardShortcut("q", modifiers: .command)
+            .frame(maxWidth: .infinity)
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
