@@ -88,7 +88,7 @@ struct PopoverView: View {
                 } label: {
                     Label("About", systemImage: "info.circle")
                 }
-                .controlSize(.small)
+                .buttonStyle(CompactFooterStyle())
                 .help("About mac-midi-router — version, author, license")
 
                 Button {
@@ -97,7 +97,7 @@ struct PopoverView: View {
                 } label: {
                     Label("Router", systemImage: "square.grid.3x3")
                 }
-                .controlSize(.small)
+                .buttonStyle(CompactFooterStyle())
 
                 Button(role: .destructive) {
                     closePopover()
@@ -105,12 +105,29 @@ struct PopoverView: View {
                 } label: {
                     Label("Quit", systemImage: "power")
                 }
-                .controlSize(.small)
+                .buttonStyle(CompactFooterStyle())
                 .keyboardShortcut("q", modifiers: .command)
                 .help("Quit the app (\u{2318}Q)")
             }
         }
         .padding()
         .frame(width: 300, alignment: .leading)   // fixed width, height hugs content
+    }
+}
+
+/// Smaller chrome, full-size text: same font as everywhere else, just tighter
+/// padding around the label instead of the system's tall bordered button.
+private struct CompactFooterStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.body)   // text never shrinks
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
+            .foregroundStyle(configuration.isPressed ? .primary : .primary)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.primary.opacity(configuration.isPressed ? 0.22 : 0.10))
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 6))
     }
 }
