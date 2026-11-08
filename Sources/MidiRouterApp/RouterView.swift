@@ -359,9 +359,9 @@ struct MatrixCell: View {
         }
         if isMuted {
             if !engine.matrixConnectedDestinations.contains(dest) {
-                return .red.opacity(0.25)          // muted, device missing
+                return .red.opacity(0.35)          // muted, device missing
             }
-            return .red.opacity(0.45)              // muted
+            return .red.opacity(0.6)               // muted
         }
         if !engine.matrixConnectedDestinations.contains(dest) {
             return isMerged ? .indigo.opacity(0.35) : .gray.opacity(0.45)   // configured, device missing
