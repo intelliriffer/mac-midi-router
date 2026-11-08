@@ -14,6 +14,9 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
         super.init()
         // No contentSize: the popover tracks the SwiftUI content — small with
         // few routes, growing as routes are added (capped by PopoverView).
+        // Explicitly transient: closes on any click outside the popover
+        // (default was applicationDefined, which never auto-dismissed).
+        popover.behavior = .transient
         popover.contentViewController = NSHostingController(rootView: PopoverView(
             engine: engine,
             openRouter: { [weak self] in self?.openRouterWindow() },
