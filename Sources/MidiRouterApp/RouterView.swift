@@ -387,9 +387,9 @@ struct MatrixCell: View {
             return .red.opacity(0.06)              // muted — near-invisible tint
         }
         if !engine.matrixConnectedDestinations.contains(dest) {
-            return isMerged ? .indigo.opacity(0.35) : .gray.opacity(0.45)   // configured, device missing
+            return isMerged ? .indigo.opacity(0.12) : .gray.opacity(0.45)   // configured, device missing
         }
-        return isMerged ? .indigo.opacity(0.7) : .accentColor.opacity(0.7)  // routed + connected
+        return isMerged ? .indigo.opacity(0.35) : .accentColor.opacity(0.35)  // routed + connected
     }
 }
 
