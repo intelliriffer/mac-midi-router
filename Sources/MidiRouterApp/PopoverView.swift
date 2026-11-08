@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import ServiceManagement
 import MidiRouterCore
 
 /// Quick route on/off + Open Router (spec §UI details).
@@ -108,20 +109,20 @@ struct PopoverView: View {
             HStack(spacing: 12) {
                 Button {
                     closePopover()
+                    openRouter()
+                } label: {
+                    Label("Router", systemImage: "square.grid.3x3")
+                }
+                .buttonStyle(CompactFooterStyle())
+
+                Button {
+                    closePopover()
                     openAbout()
                 } label: {
                     Label("About", systemImage: "info.circle")
                 }
                 .buttonStyle(CompactFooterStyle())
                 .help("About mac-midi-router — version, author, license")
-
-                Button {
-                    closePopover()
-                    openRouter()
-                } label: {
-                    Label("Router", systemImage: "square.grid.3x3")
-                }
-                .buttonStyle(CompactFooterStyle())
 
                 Button(role: .destructive) {
                     closePopover()
@@ -132,6 +133,21 @@ struct PopoverView: View {
                 .buttonStyle(CompactFooterStyle())
                 .keyboardShortcut("q", modifiers: .command)
                 .help("Quit the app (\u{2318}Q)")
+
+                Toggle("Launch at Login", isOn: Binding(
+                    get: { SMAppService.mainApp.status == .enabled },
+                    set: { on in
+                        do {
+                            if on { try SMAppService.mainApp.register() }
+                            else { try SMAppService.mainApp.unregister() }
+                        } catch {
+                            NSLog("Launch-at-login failed: \(error)")
+                        }
+                    }))
+                .toggleStyle(.checkbox)
+                .font(.body)
+                .fixedSize()
+                .help("Start mac-midi-router automatically at login")
             }
         }
         .padding()
