@@ -228,9 +228,20 @@ struct MatrixCell: View {
                     engine.setCell(source: source, dest: dest, filter: .all)
                 }
                 Divider()
-                ForEach(1...16, id: \.self) { channel in
-                    Button("ch \(channel)") {
-                        engine.setCell(source: source, dest: dest, filter: .channel(channel))
+                Menu("channel") {
+                    ForEach(1...16, id: \.self) { channel in
+                        Button("ch \(channel)") {
+                            engine.setCell(source: source, dest: dest,
+                                           filter: .channel(channel))
+                        }
+                    }
+                }
+                Menu("merge into") {
+                    ForEach(1...16, id: \.self) { channel in
+                        Button("ch \(channel)") {
+                            engine.setCell(source: source, dest: dest,
+                                           filter: .all, merge: channel)
+                        }
                     }
                 }
             } label: {
@@ -246,7 +257,7 @@ struct MatrixCell: View {
             }
             .menuIndicator(.hidden)
             .menuStyle(.borderlessButton)
-            .help("\(source) → \(dest) · \(engine.cellLabel(source: source, dest: dest))\(routeEnabled ? "" : " (route off)")")
+            .help("\(source) → \(dest) · \(modeText)\(routeEnabled ? "" : " (route off)")")
         }
     }
 
@@ -266,6 +277,17 @@ struct MatrixCell: View {
         engine.cellLabel(source: source, dest: dest) == "—"
     }
 
+    private var isMerged: Bool {
+        engine.cellMerge(source: source, dest: dest) != nil
+    }
+
+    private var modeText: String {
+        if let merge = engine.cellMerge(source: source, dest: dest) {
+            return "merge into ch \(merge)"
+        }
+        return engine.cellLabel(source: source, dest: dest)
+    }
+
     /// The popover's quick on/off lives on the route; cells must reflect it.
     private var routeEnabled: Bool {
         engine.config.currentRoutes
@@ -280,9 +302,9 @@ struct MatrixCell: View {
             return .gray.opacity(0.2)              // route muted off in router
         }
         if !engine.matrixConnectedDestinations.contains(dest) {
-            return .gray.opacity(0.45)             // configured, device missing
+            return isMerged ? .indigo.opacity(0.35) : .gray.opacity(0.45)   // configured, device missing
         }
-        return .accentColor.opacity(0.7)           // routed + connected
+        return isMerged ? .indigo.opacity(0.7) : .accentColor.opacity(0.7)  // routed + connected
     }
 }
 
