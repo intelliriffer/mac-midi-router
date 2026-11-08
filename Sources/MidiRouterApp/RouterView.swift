@@ -384,7 +384,7 @@ struct MatrixCell: View {
             return .gray.opacity(0.2)              // route muted off in router
         }
         if isMuted {
-            return .red.opacity(0.06)              // muted — near-invisible tint
+            return .red.opacity(0.12)              // muted tint
         }
         if !engine.matrixConnectedDestinations.contains(dest) {
             return isMerged ? .indigo.opacity(0.12) : .gray.opacity(0.45)   // configured, device missing
