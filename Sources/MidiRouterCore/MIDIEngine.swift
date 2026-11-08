@@ -168,7 +168,7 @@ extension MIDIEngine: MIDIIODelegate {    /// Fan-out path. Runs on CoreMIDI's r
             var filtered: [MIDIPacket] = []
             filtered.reserveCapacity(packets.count)
             for pkt in packets {
-                guard var kept = applyFilter(pkt, filter) else { continue }
+                guard var kept = applyFilter(pkt, filter, suppressed: dest.suppressed) else { continue }
                 if let merge = merge {
                     kept = rewriteToChannel(kept, merge)
                 }
@@ -263,6 +263,25 @@ extension MIDIEngine {
                   let destIndex = state.currentRoutes[routeIndex].destinations
                       .firstIndex(where: { $0.name == dest }) else { return }
             state.currentRoutes[routeIndex].destinations[destIndex].enabled = enabled
+        }
+    }
+
+    /// Per-mapping suppressed message types, for the popover; nil when no
+    /// mapping exists.
+    public func mappingTypes(source: String, dest: String) -> Set<MessageType>? {
+        config.currentRoutes.first(where: { $0.source == source })?
+            .destinations.first(where: { $0.name == dest })?.suppressed
+    }
+
+    /// Editing the suppressed set of a mapping that doesn't exist is a no-op
+    /// (no creation — the popover only edits cells that already exist in the
+    /// matrix).
+    public func setMappingTypes(source: String, dest: String, suppressed: Set<MessageType>) {
+        mutateConfig { state in
+            guard let routeIndex = state.currentRoutes.firstIndex(where: { $0.source == source }),
+                  let destIndex = state.currentRoutes[routeIndex].destinations
+                      .firstIndex(where: { $0.name == dest }) else { return }
+            state.currentRoutes[routeIndex].destinations[destIndex].suppressed = suppressed
         }
     }
 
