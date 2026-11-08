@@ -313,24 +313,23 @@ struct MatrixCell: View {
     /// label only hosts an invisible hit area and this overlay paints the
     /// look. allowsHitTesting(false) keeps clicks on the menu beneath.
     private var cellVisual: some View {
-        Text(engine.cellLabel(source: source, dest: dest))
-            .font(.system(size: 10, weight: isMuted ? .semibold : .medium, design: .monospaced))
-            .foregroundStyle(isMuted ? AnyShapeStyle(.red)
-                                     : (isEmpty ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary)))
-            .frame(maxWidth: .infinity)
-            .frame(height: 22)
-            .padding(.horizontal, 2)
-            .background(cellColor)
-            .cornerRadius(5)
-            .overlay(alignment: .topTrailing) {
-                if !isEmpty {
-                    Circle()
-                        .fill(isMuted ? .red : .green)
-                        .frame(width: 6, height: 6)
-                        .offset(x: -2, y: 2)
-                }
+        HStack(spacing: 4) {
+            if !isEmpty {
+                Circle()
+                    .fill(isMuted ? .red : .green)
+                    .frame(width: 6, height: 6)
             }
-            .allowsHitTesting(false)
+            Text(engine.cellLabel(source: source, dest: dest))
+                .font(.system(size: 10, weight: isMuted ? .semibold : .medium, design: .monospaced))
+                .foregroundStyle(isMuted ? AnyShapeStyle(.red)
+                                         : (isEmpty ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary)))
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 22)
+        .padding(.horizontal, 2)
+        .background(cellColor)
+        .cornerRadius(5)
+        .allowsHitTesting(false)
     }
 
     private var selfRouteCell: some View {
