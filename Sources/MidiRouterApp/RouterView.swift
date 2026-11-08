@@ -307,10 +307,10 @@ struct MatrixCell: View {
             .overlay(alignment: .leading) {
                 if !isEmpty {
                     Circle()
-                        .fill(isMuted ? .red : .green)
-                        .frame(width: 6, height: 6)
-                        .padding(.leading, 5)
-                        .contentShape(Circle().inset(by: -4))
+                        .fill(isMuted ? AnyShapeStyle(.red) : AnyShapeStyle(.green))
+                        .frame(width: 10, height: 10)
+                        .padding(.leading, 4)
+                        .contentShape(Circle().inset(by: -6))
                         .onTapGesture {
                             engine.setMappingEnabled(source: source, dest: dest, enabled: isMuted)
                         }
