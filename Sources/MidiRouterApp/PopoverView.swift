@@ -145,6 +145,14 @@ struct PopoverView: View {
                             do {
                                 if on { try status.register() }
                                 else { try status.unregister() }
+                                // The system's status query lags behind the
+                                // registration change; the checkbox re-render
+                                // right now reads the stale notFound state.
+                                // Nudge the view now and again after settle.
+                                DispatchQueue.main.async { engine.objectWillChange.send() }
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                                    engine.objectWillChange.send()
+                                }
                             } catch {
                                 let line = "[login] \(error)\n"
                                 let url = URL(fileURLWithPath: "/tmp/mmr-login.log")
