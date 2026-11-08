@@ -7,6 +7,14 @@ import MidiRouterCore
 struct RouterView: View {
     @ObservedObject var engine: MIDIEngine
     @State private var presetName = ""
+    @State private var headerOffset: CGFloat = 0
+
+    /// Tracks the horizontal scroll offset of the cell rows so the output
+    /// header band (fixed above the vertical scroll) moves in lock-step.
+    private struct HorizontalOffsetKey: PreferenceKey {
+        static var defaultValue: CGFloat = 0
+        static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+    }
 
     private let rowHeight: CGFloat = 30
     private let headerHeight: CGFloat = 36
@@ -28,6 +36,18 @@ struct RouterView: View {
                     .foregroundStyle(.orange)
             }
 
+            HStack(alignment: .top, spacing: 0) {
+                axisCorner
+                Rectangle()
+                    .fill(Color.primary.opacity(0.2))
+                    .frame(width: 1, height: headerHeight)
+                outputHeaderRow
+                    .offset(x: headerOffset)
+                    .clipped()
+            }
+            .frame(height: headerHeight, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
+
             ScrollView(.vertical) {
                 HStack(alignment: .top, spacing: 0) {
                     sourceColumn
@@ -36,6 +56,13 @@ struct RouterView: View {
                         .frame(width: 1)
                     ScrollView(.horizontal) {
                         matrixBody
+                            .background(alignment: .leading) {
+                                GeometryReader { geo in
+                                    Color.clear.preference(
+                                        key: HorizontalOffsetKey.self,
+                                        value: geo.frame(in: .global).minX)
+                                }
+                            }
                     }
                 }
             }
@@ -45,13 +72,17 @@ struct RouterView: View {
             presetsControls
         }
         .padding()
+        .onPreferenceChange(HorizontalOffsetKey.self) { contentMinX in
+            // Both bands start at the same X (sourceWidth + 1) and share the
+            // global space's origin, so the delta alone drives the header.
+            headerOffset = (sourceWidth + 1) - contentMinX
+        }
     }
 
     // MARK: sticky left column (inputs) — never moves horizontally
 
     private var sourceColumn: some View {
         VStack(alignment: .leading, spacing: 0) {
-            axisCorner
             ForEach(engine.matrixSources, id: \.self) { source in
                 sourceLabel(source)
                     .overlay(alignment: .bottom) { rowLine() }
@@ -95,7 +126,6 @@ struct RouterView: View {
 
     private var matrixBody: some View {
         VStack(alignment: .leading, spacing: 0) {
-            outputHeaderRow
             ForEach(engine.matrixSources, id: \.self) { source in
                 cellRow(source: source)
                     .overlay(alignment: .bottom) { rowLine() }
