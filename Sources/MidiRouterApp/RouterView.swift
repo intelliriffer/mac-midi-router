@@ -303,6 +303,7 @@ struct MatrixCell: View {
             }
             .menuIndicator(.hidden)
             .menuStyle(.borderlessButton)
+            .focusable(false)
             .overlay(cellVisual)
             .overlay(alignment: .leading) {
                 if !isEmpty {
