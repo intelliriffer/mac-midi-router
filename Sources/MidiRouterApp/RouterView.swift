@@ -335,7 +335,7 @@ struct MatrixCell: View {
                         .help(isMuted ? "Click to enable mapping" : "Click to mute mapping")
                 }
             }
-            .help("\(source) → \(dest) · \(modeText)\(suppressedText)\(routeEnabled ? "" : " (route off)")\(isMuted ? " (muted)" : "")\(isSyncLane ? " · sync lane" : "")")
+            .help("\(source) → \(dest) · \(modeText)\(suppressedText)\(routeEnabled ? "" : " (route off)")\(isMuted ? " (muted)" : "")\(showsClockGlyph ? " · clock" : "")")
         }
     }
 
@@ -354,7 +354,7 @@ struct MatrixCell: View {
             .background(cellColor)
             .cornerRadius(5)
             .overlay(alignment: .trailing) {
-                if isSyncLane {
+                if showsClockGlyph {
                     Image(systemName: "timer")
                         .font(.system(size: 8))
                         .foregroundStyle(.secondary)
@@ -364,13 +364,11 @@ struct MatrixCell: View {
             .allowsHitTesting(false)
     }
 
-    /// Sync-lane cells still forward the clock while dropping performance
-    /// data — flagged with a small clock glyph at the cell's trailing edge
-    /// (painted here; the system Menu label would discard it).
-    private var isSyncLane: Bool {
-        let suppressed = engine.mappingTypes(source: source, dest: dest) ?? []
-        return !suppressed.contains(.clock)
-            && [.note, .cc, .programChange, .pitchBend, .aftertouch].contains { suppressed.contains($0) }
+    /// The clock glyph marks every mapped cell that still forwards clock —
+    /// regardless of the channel/merge/filter selection (painted here; the
+    /// system Menu label would discard it). Empty cells show nothing.
+    private var showsClockGlyph: Bool {
+        !isEmpty && !(engine.mappingTypes(source: source, dest: dest) ?? []).contains(.clock)
     }
 
 
