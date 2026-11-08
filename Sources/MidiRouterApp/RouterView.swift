@@ -297,21 +297,40 @@ struct MatrixCell: View {
                     }
                 }
             } label: {
-                Text(engine.cellLabel(source: source, dest: dest))
-                    .font(.system(size: 10, weight: .medium, design: .monospaced))
-                    .foregroundStyle(isMuted ? AnyShapeStyle(.red)
-                                             : (isEmpty ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary)))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 22)
-                    .padding(.horizontal, 2)
-                    .background(cellColor)
-                    .cornerRadius(5)
+                Color.clear
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .contentShape(Rectangle())
             }
             .menuIndicator(.hidden)
             .menuStyle(.borderlessButton)
+            .overlay(cellVisual)
             .help("\(source) → \(dest) · \(modeText)\(routeEnabled ? "" : " (route off)")\(isMuted ? " (muted)" : "")")
         }
+    }
+
+    /// The cell's visual, OUTSIDE the system menu label: macOS replaces the
+    /// Menu label's own colors (observed — .red did not paint at all), so the
+    /// label only hosts an invisible hit area and this overlay paints the
+    /// look. allowsHitTesting(false) keeps clicks on the menu beneath.
+    private var cellVisual: some View {
+        Text(engine.cellLabel(source: source, dest: dest))
+            .font(.system(size: 10, weight: isMuted ? .semibold : .medium, design: .monospaced))
+            .foregroundStyle(isMuted ? AnyShapeStyle(.red)
+                                     : (isEmpty ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary)))
+            .frame(maxWidth: .infinity)
+            .frame(height: 22)
+            .padding(.horizontal, 2)
+            .background(cellColor)
+            .cornerRadius(5)
+            .overlay(alignment: .topTrailing) {
+                if !isEmpty {
+                    Circle()
+                        .fill(isMuted ? .red : .green)
+                        .frame(width: 6, height: 6)
+                        .offset(x: -2, y: 2)
+                }
+            }
+            .allowsHitTesting(false)
     }
 
     private var selfRouteCell: some View {
