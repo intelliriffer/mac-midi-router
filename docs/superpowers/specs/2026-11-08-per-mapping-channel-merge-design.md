@@ -49,8 +49,9 @@ Rules:
 Visual state:
 
 - Filter mode cell label unchanged: `ch 10`.
-- Merge mode cell label: `→ 10`, with a distinct color accent; the cell
-  remains calm and readable.
+- Merge mode cell label uses the compact form `M:N` so the mode is legible
+  at a glance, e.g. `M:10`, with a distinct color accent; the cell remains
+  calm and readable.
 - Tooltip text: `merge into ch 10` vs `ch 10`.
 
 ## Data model (`Model.swift`)
@@ -96,7 +97,7 @@ Forward path, per destination, per packet:
 
 `setCell(source:dest:filter:merge:)` gains a `merge` parameter (default
 `nil` so existing call sites remain valid). `off` clears both filter and
-merge. `cellLabel` renders `→ N` for merged cells.
+merge. `cellLabel` renders `M:N` (e.g. `M:10`) for merged cells.
 
 ## Tests (`Tests/MidiRouterCoreTests`)
 
@@ -108,7 +109,7 @@ merge. `cellLabel` renders `→ N` for merged cells.
   confirms unchanged behavior.
 - Model: legacy JSON without `merge` decodes to `nil` (no crash), roundtrip
   encode/decode with merge set, presets preserve the merge flag.
-- `setCell`/`cellLabel`: merge set and cleared; label `→ N` vs `ch N`.
+- `setCell`/`cellLabel`: merge set and cleared; label `M:N` vs `ch N`.
 
 ## Non-goals
 
