@@ -79,6 +79,17 @@ final class EngineForwardTests: XCTestCase {
         _ = engine
     }
 
+    func testOutOfRangeMergeFromMutableFieldFallsBackToFilter() {
+        var route = Route(source: "Keys", enabled: true,
+                          destinations: [Destination(name: "UM-1", filter: .channel(3))])
+        // Simulate hand-edited state.json: bypasses init-time validation.
+        route.destinations[0].merge = 0
+        let (io, engine) = boot([route])
+        io.fakeSend(source: "Keys", packets: [MIDIPacket(bytes: [0x90, 0x3C, 0x40])])
+        XCTAssertTrue(io.receivedLog.isEmpty)
+        _ = engine
+    }
+
     func testSetCellSetsAndClearsMergeAndUpdatesLabel() {
         let (io, engine) = boot([])
         engine.setCell(source: "Keys", dest: "UM-1", filter: .all, merge: 7)

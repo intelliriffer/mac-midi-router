@@ -159,12 +159,16 @@ extension MIDIEngine: MIDIIODelegate {    /// Fan-out path. Runs on CoreMIDI's r
         guard let route = route else { return }
 
         for dest in route.destinations where connectedTargets.contains(dest.name) {
-            let filter: ChannelFilter = dest.merge == nil ? dest.filter : .all
+            // Re-validate `merge` at the use-site: Codable decode bypasses
+            // init-time validation, so disk contents can carry out-of-range
+            // values. Bad values fall back to plain filter mode.
+            let merge = dest.merge.flatMap(Destination.validateMerge)
+            let filter: ChannelFilter = merge == nil ? dest.filter : .all
             var filtered: [MIDIPacket] = []
             filtered.reserveCapacity(packets.count)
             for pkt in packets {
                 guard var kept = applyFilter(pkt, filter) else { continue }
-                if let merge = dest.merge {
+                if let merge = merge {
                     kept = rewriteToChannel(kept, merge)
                 }
                 filtered.append(kept)

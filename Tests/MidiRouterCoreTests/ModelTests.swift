@@ -56,4 +56,10 @@ final class ModelTests: XCTestCase {
         XCTAssertEqual(Destination.validateMerge(16), 16)
         XCTAssertNil(Destination.validateMerge(17))
     }
+
+    func testInitNullsInvalidMerge() {
+        XCTAssertNil(Destination(name: "UM-1", filter: .all, merge: 0).merge)
+        XCTAssertNil(Destination(name: "UM-1", filter: .all, merge: 17).merge)
+        XCTAssertEqual(Destination(name: "UM-1", filter: .all, merge: 16).merge, 16)
+    }
 }

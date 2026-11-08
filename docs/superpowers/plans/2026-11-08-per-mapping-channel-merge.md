@@ -133,7 +133,7 @@ Append inside `final class FilterTests: XCTestCase` in `Tests/MidiRouterCoreTest
         XCTAssertEqual(rewriteToChannel(pkt([0x80, 0x3C, 0x00]), 16).bytes,
                        [0x8F, 0x3C, 0x00])                    // note off ch1 → ch16
         XCTAssertEqual(rewriteToChannel(pkt([0xB5, 0x07, 0x64]), 10).bytes,
-                       [0xBA, 0x07, 0x64])                    // CC ch6 → ch10
+                       [0xB9, 0x07, 0x64])                    // CC ch6 → ch10
         XCTAssertEqual(rewriteToChannel(pkt([0xDE, 0x11]), 3).bytes,
                        [0xD2, 0x11])                          // pitch bend ch15 → ch3
         XCTAssertEqual(rewriteToChannel(pkt([0xA1, 0x40, 0x7F]), 5).bytes,
