@@ -135,7 +135,7 @@ struct PopoverView: View {
             }
         }
         .padding()
-        .frame(width: 300, alignment: .leading)   // fixed width, height hugs content
+        .frame(width: 440, alignment: .leading)   // fixed width — wide enough for port names
     }
 }
 
