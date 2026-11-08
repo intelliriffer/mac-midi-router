@@ -28,4 +28,38 @@ final class ModelTests: XCTestCase {
         XCTAssertEqual(ChannelFilter.channel(5).label, "ch 5")
         XCTAssertEqual(ChannelFilter.all.label, "all")
     }
+
+    func testMergeCodableRoundTrip() throws {
+        let route = Route(
+            source: "Keys", enabled: true,
+            destinations: [Destination(name: "UM-1", filter: .all, merge: 10)])
+        let data = try JSONEncoder().encode(route)
+        XCTAssertEqual(try JSONDecoder().decode(Route.self, from: data), route)
+    }
+
+    func testLegacyJSONWithoutMergeDecodesToNil() throws {
+        // Shape of the JSON the app writes today (no "merge" key). The filter
+        // channel uses the synthesized Codable form for enum cases with an
+        // associated value ("_0" payload key), matching real state.json files.
+        let json = """
+        {"source":"Keys","enabled":true,
+         "destinations":[{"name":"UM-1","filter":{"channel":{"_0":3}}}]}
+        """
+        let route = try JSONDecoder().decode(Route.self, from: Data(json.utf8))
+        XCTAssertNil(route.destinations[0].merge)
+        XCTAssertEqual(route.destinations[0].filter, .channel(3))
+    }
+
+    func testValidateMerge() {
+        XCTAssertNil(Destination.validateMerge(0))
+        XCTAssertEqual(Destination.validateMerge(1), 1)
+        XCTAssertEqual(Destination.validateMerge(16), 16)
+        XCTAssertNil(Destination.validateMerge(17))
+    }
+
+    func testInitNullsInvalidMerge() {
+        XCTAssertNil(Destination(name: "UM-1", filter: .all, merge: 0).merge)
+        XCTAssertNil(Destination(name: "UM-1", filter: .all, merge: 17).merge)
+        XCTAssertEqual(Destination(name: "UM-1", filter: .all, merge: 16).merge, 16)
+    }
 }

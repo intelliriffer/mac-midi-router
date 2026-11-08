@@ -19,10 +19,16 @@ public enum ChannelFilter: Codable, Equatable, Hashable {
 public struct Destination: Codable, Equatable, Hashable {
     public var name: String
     public var filter: ChannelFilter
+    public var merge: Int?
 
-    public init(name: String, filter: ChannelFilter) {
+    public init(name: String, filter: ChannelFilter, merge: Int? = nil) {
         self.name = name
         self.filter = filter
+        self.merge = merge.flatMap(Self.validateMerge)
+    }
+
+    public static func validateMerge(_ n: Int) -> Int? {
+        (1...16).contains(n) ? n : nil
     }
 }
 

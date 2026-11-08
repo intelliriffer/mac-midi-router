@@ -7,6 +7,25 @@ import MidiRouterCore
 struct RouterView: View {
     @ObservedObject var engine: MIDIEngine
     @State private var presetName = ""
+    @State private var headerOffset: CGFloat = 0
+    @State private var headerBaseX: CGFloat = 0
+    @State private var lastContentMinX: CGFloat = 0
+
+    /// Tracks the horizontal scroll offset of the cell rows so the output
+    /// header band (fixed above the vertical scroll) moves in lock-step:
+    /// the offset is `contentMinX - headerBaseX`, correct regardless of
+    /// which preference handler delivers first.
+    private struct HorizontalOffsetKey: PreferenceKey {
+        static var defaultValue: CGFloat = 0
+        static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+    }
+
+    /// The header's own natural leading X in `.global` space; the offset is
+    /// computed as the delta against the scrolled content's X.
+    private struct HeaderBaseKey: PreferenceKey {
+        static var defaultValue: CGFloat = 0
+        static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+    }
 
     private let rowHeight: CGFloat = 30
     private let headerHeight: CGFloat = 36
@@ -28,6 +47,26 @@ struct RouterView: View {
                     .foregroundStyle(.orange)
             }
 
+        // Note: rest-column alignment depends on axisCorner being exactly
+        // `sourceWidth` wide and matching the sticky `sourceColumn`.
+        HStack(alignment: .top, spacing: 0) {
+            axisCorner
+                Rectangle()
+                    .fill(Color.primary.opacity(0.2))
+                    .frame(width: 1, height: headerHeight)
+                outputHeaderRow
+                    .background(alignment: .leading) {
+                        GeometryReader { geo in
+                            Color.clear.preference(key: HeaderBaseKey.self,
+                                                   value: geo.frame(in: .global).minX)
+                        }
+                    }
+                    .offset(x: headerOffset)
+                    .clipped()
+            }
+            .frame(height: headerHeight, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
+
             ScrollView(.vertical) {
                 HStack(alignment: .top, spacing: 0) {
                     sourceColumn
@@ -36,6 +75,13 @@ struct RouterView: View {
                         .frame(width: 1)
                     ScrollView(.horizontal) {
                         matrixBody
+                            .background(alignment: .leading) {
+                                GeometryReader { geo in
+                                    Color.clear.preference(
+                                        key: HorizontalOffsetKey.self,
+                                        value: geo.frame(in: .global).minX)
+                                }
+                            }
                     }
                 }
             }
@@ -45,13 +91,20 @@ struct RouterView: View {
             presetsControls
         }
         .padding()
+        .onPreferenceChange(HeaderBaseKey.self) { base in
+            headerBaseX = base
+            headerOffset = lastContentMinX - base
+        }
+        .onPreferenceChange(HorizontalOffsetKey.self) { content in
+            lastContentMinX = content
+            headerOffset = content - headerBaseX
+        }
     }
 
     // MARK: sticky left column (inputs) — never moves horizontally
 
     private var sourceColumn: some View {
         VStack(alignment: .leading, spacing: 0) {
-            axisCorner
             ForEach(engine.matrixSources, id: \.self) { source in
                 sourceLabel(source)
                     .overlay(alignment: .bottom) { rowLine() }
@@ -95,7 +148,6 @@ struct RouterView: View {
 
     private var matrixBody: some View {
         VStack(alignment: .leading, spacing: 0) {
-            outputHeaderRow
             ForEach(engine.matrixSources, id: \.self) { source in
                 cellRow(source: source)
                     .overlay(alignment: .bottom) { rowLine() }
@@ -228,9 +280,20 @@ struct MatrixCell: View {
                     engine.setCell(source: source, dest: dest, filter: .all)
                 }
                 Divider()
-                ForEach(1...16, id: \.self) { channel in
-                    Button("ch \(channel)") {
-                        engine.setCell(source: source, dest: dest, filter: .channel(channel))
+                Menu("channel") {
+                    ForEach(1...16, id: \.self) { channel in
+                        Button("ch \(channel)") {
+                            engine.setCell(source: source, dest: dest,
+                                           filter: .channel(channel))
+                        }
+                    }
+                }
+                Menu("merge into") {
+                    ForEach(1...16, id: \.self) { channel in
+                        Button("ch \(channel)") {
+                            engine.setCell(source: source, dest: dest,
+                                           filter: .all, merge: channel)
+                        }
                     }
                 }
             } label: {
@@ -246,7 +309,7 @@ struct MatrixCell: View {
             }
             .menuIndicator(.hidden)
             .menuStyle(.borderlessButton)
-            .help("\(source) → \(dest) · \(engine.cellLabel(source: source, dest: dest))\(routeEnabled ? "" : " (route off)")")
+            .help("\(source) → \(dest) · \(modeText)\(routeEnabled ? "" : " (route off)")")
         }
     }
 
@@ -266,6 +329,17 @@ struct MatrixCell: View {
         engine.cellLabel(source: source, dest: dest) == "—"
     }
 
+    private var isMerged: Bool {
+        engine.cellMerge(source: source, dest: dest) != nil
+    }
+
+    private var modeText: String {
+        if let merge = engine.cellMerge(source: source, dest: dest) {
+            return "merge into ch \(merge)"
+        }
+        return engine.cellLabel(source: source, dest: dest)
+    }
+
     /// The popover's quick on/off lives on the route; cells must reflect it.
     private var routeEnabled: Bool {
         engine.config.currentRoutes
@@ -280,9 +354,9 @@ struct MatrixCell: View {
             return .gray.opacity(0.2)              // route muted off in router
         }
         if !engine.matrixConnectedDestinations.contains(dest) {
-            return .gray.opacity(0.45)             // configured, device missing
+            return isMerged ? .indigo.opacity(0.35) : .gray.opacity(0.45)   // configured, device missing
         }
-        return .accentColor.opacity(0.7)           // routed + connected
+        return isMerged ? .indigo.opacity(0.7) : .accentColor.opacity(0.7)  // routed + connected
     }
 }
 
