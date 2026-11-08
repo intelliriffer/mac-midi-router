@@ -328,7 +328,7 @@ struct MatrixCell: View {
     private var cellVisual: some View {
         Text(engine.cellLabel(source: source, dest: dest))
             .font(.system(size: 10, weight: isMuted ? .semibold : .medium, design: .monospaced))
-            .foregroundStyle(isMuted ? AnyShapeStyle(.red)
+            .foregroundStyle(isMuted ? AnyShapeStyle(.white)
                                      : (isEmpty ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary)))
             .frame(maxWidth: .infinity)
             .frame(height: 22)
@@ -384,7 +384,7 @@ struct MatrixCell: View {
             return .gray.opacity(0.2)              // route muted off in router
         }
         if isMuted {
-            return .red.opacity(0.35)              // muted (bg tint kept mild)
+            return .red.opacity(0.55)              // muted (bg carries the hint)
         }
         if !engine.matrixConnectedDestinations.contains(dest) {
             return isMerged ? .indigo.opacity(0.35) : .gray.opacity(0.45)   // configured, device missing
