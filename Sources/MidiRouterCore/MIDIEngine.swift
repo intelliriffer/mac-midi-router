@@ -158,7 +158,8 @@ extension MIDIEngine: MIDIIODelegate {    /// Fan-out path. Runs on CoreMIDI's r
         lock.unlock()
         guard let route = route else { return }
 
-        for dest in route.destinations where connectedTargets.contains(dest.name) {
+        for dest in route.destinations
+              where connectedTargets.contains(dest.name) && dest.enabled {
             // Re-validate `merge` at the use-site: Codable decode bypasses
             // init-time validation, so disk contents can carry out-of-range
             // values. Bad values fall back to plain filter mode.
@@ -229,6 +230,7 @@ extension MIDIEngine {
                 if let destIndex = destinations.firstIndex(where: { $0.name == dest }) {
                     state.currentRoutes[routeIndex].destinations[destIndex].filter = filter
                     state.currentRoutes[routeIndex].destinations[destIndex].merge = merge
+                    state.currentRoutes[routeIndex].destinations[destIndex].enabled = true
                 } else {
                     state.currentRoutes[routeIndex].destinations
                         .append(Destination(name: dest, filter: filter, merge: merge))
@@ -245,6 +247,23 @@ extension MIDIEngine {
             .destinations.first(where: { $0.name == dest })
         if let merge = d?.merge { return "M:\(merge)" }
         return d?.filter.label ?? "—"
+    }
+
+    /// Per-mapping mute state, for the popover; nil when no mapping exists.
+    public func mappingEnabled(source: String, dest: String) -> Bool? {
+        config.currentRoutes.first(where: { $0.source == source })?
+            .destinations.first(where: { $0.name == dest })?.enabled
+    }
+
+    /// Toggling a mapping that doesn't exist is a no-op (no creation — the
+    /// popover only edits cells that already exist in the matrix).
+    public func setMappingEnabled(source: String, dest: String, enabled: Bool) {
+        mutateConfig { state in
+            guard let routeIndex = state.currentRoutes.firstIndex(where: { $0.source == source }),
+                  let destIndex = state.currentRoutes[routeIndex].destinations
+                      .firstIndex(where: { $0.name == dest }) else { return }
+            state.currentRoutes[routeIndex].destinations[destIndex].enabled = enabled
+        }
     }
 
     // MARK: Presets (thin forwards into AppState, per spec §persistence)
