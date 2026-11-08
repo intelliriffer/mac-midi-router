@@ -16,72 +16,55 @@ struct PopoverView: View {
         return max(120, screen - 280)
     }
 
-    /// Estimated list height (~36pt per row + spacing) vs the cap.
+    /// Estimated list height (~40pt per mapping row + spacing) vs the cap.
     private var routesWouldOverflow: Bool {
-        let estimated = CGFloat(max(engine.config.currentRoutes.count, 1)) * 40 + 16
+        let estimated = CGFloat(max(mappingRows.count, 1)) * 40 + 16
         return estimated > maxRoutesHeight
+    }
+
+    private struct MappingRow: Identifiable {
+        let source: String
+        let dest: String
+        var id: String { "\(source) → \(dest)" }
+    }
+
+    private var mappingRows: [MappingRow] {
+        engine.config.currentRoutes.flatMap { route in
+            route.destinations.map { MappingRow(source: route.source, dest: $0.name) }
+        }
     }
 
     /// The route rows themselves — hugs its content; wrapped in a ScrollView
     /// by the body only when the list would exceed the screen cap.
-    /// Switch first, then the source name (user preference).
+    /// One row per mapping: switch first, then "source → dest".
     private var routeListContent: some View {
         VStack(alignment: .leading, spacing: 8) {
-            ForEach(engine.config.currentRoutes, id: \.source) { route in
+            ForEach(mappingRows) { row in
                 HStack(spacing: 8) {
                     Toggle("", isOn: Binding(
-                        get: {
-                            engine.config.currentRoutes
-                                .first { $0.source == route.source }?.enabled ?? false
-                        },
-                        set: {
-                            engine.setRouteEnabled(source: route.source, enabled: $0)
-                        }))
-                    .toggleStyle(.switch)
-                    .controlSize(.small)          // smaller switch chrome; label is hidden anyway
-                    .labelsHidden()
-                    .help("Route \"\(route.source)\" on/off")
+                        get: { engine.mappingEnabled(source: row.source, dest: row.dest) ?? false },
+                        set: { engine.setMappingEnabled(source: row.source, dest: row.dest, enabled: $0) }))
+                        .toggleStyle(.switch)
+                        .controlSize(.small)
+                        .labelsHidden()
+                        .help("Mapping \"\(row.source)\" → \"\(row.dest)\" on/off")
 
-                    Text(route.source)
-                        .font(.body)               // same size as the footer buttons
+                    Text("\(row.source) → \(row.dest)")
+                        .font(.body)
                         .lineLimit(1)
                         .truncationMode(.tail)
 
                     Spacer()
 
-                    Menu {
-                        if route.destinations.isEmpty {
-                            Button("no mappings") { }
-                                .disabled(true)
-                        }
-                        ForEach(route.destinations, id: \.name) { dest in
-                            Toggle("\(dest.name) (\(engine.cellLabel(source: route.source, dest: dest.name)))",
-                                   isOn: Binding(
-                                       get: {
-                                           engine.mappingEnabled(source: route.source, dest: dest.name) ?? false
-                                       },
-                                       set: {
-                                           engine.setMappingEnabled(source: route.source,
-                                                                    dest: dest.name, enabled: $0)
-                                       }))
-                                .toggleStyle(.switch)
-                                .controlSize(.small)
-                                .disabled(!route.enabled)
-                        }
-                    } label: {
-                        Text("\(route.destinations.count) →")
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-                            .opacity(route.enabled ? 1 : 0.4)
-                    }
-                    .menuStyle(.borderlessButton)
-                    .fixedSize()
-                    .help("Toggle mappings of \"\(route.source)\"")
+                    Text(engine.cellLabel(source: row.source, dest: row.dest))
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .help("Mapping \"\(row.source)\" → \"\(row.dest)\" on/off")
                 }
             }
 
-            if engine.config.currentRoutes.isEmpty {
-                Text("No routes yet — open the Router.")
+            if mappingRows.isEmpty {
+                Text("No mappings yet — open the Router.")
                     .foregroundStyle(.secondary)
             }
         }
