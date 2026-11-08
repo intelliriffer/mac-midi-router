@@ -45,10 +45,11 @@ Append inside `final class ModelTests: XCTestCase` in `Tests/MidiRouterCoreTests
     }
 
     func testLegacyJSONWithoutMergeDecodesToNil() throws {
-        // Shape of the JSON the app writes today (no "merge" key).
+        // Shape of the JSON the app writes today: synthesized enum Codable
+        // encodes `.channel(3)` as {"channel":{"_0":3}} and `.all` as {"all":{}}.
         let json = """
         {"source":"Keys","enabled":true,
-         "destinations":[{"name":"UM-1","filter":{"channel":3}}]}
+         "destinations":[{"name":"UM-1","filter":{"channel":{"_0":3}}}]}
         """
         let route = try JSONDecoder().decode(Route.self, from: Data(json.utf8))
         XCTAssertNil(route.destinations[0].merge)
