@@ -134,20 +134,39 @@ struct PopoverView: View {
                 .keyboardShortcut("q", modifiers: .command)
                 .help("Quit the app (\u{2318}Q)")
 
-                Toggle("Launch at Login", isOn: Binding(
-                    get: { SMAppService.mainApp.status == .enabled },
-                    set: { on in
-                        do {
-                            if on { try SMAppService.mainApp.register() }
-                            else { try SMAppService.mainApp.unregister() }
-                        } catch {
-                            NSLog("Launch-at-login failed: \(error)")
-                        }
-                    }))
-                .toggleStyle(.checkbox)
-                .font(.body)
-                .fixedSize()
-                .help("Start mac-midi-router automatically at login")
+                HStack(spacing: 5) {
+                    Toggle("", isOn: Binding(
+                        get: {
+                            SMAppService.mainApp.status == .enabled
+                                || SMAppService.mainApp.status == .requiresApproval
+                        },
+                        set: { on in
+                            let status = SMAppService.mainApp
+                            do {
+                                if on { try status.register() }
+                                else { try status.unregister() }
+                            } catch {
+                                let line = "[login] \(error)\n"
+                                let url = URL(fileURLWithPath: "/tmp/mmr-login.log")
+                                if let fh = try? FileHandle(forWritingTo: url) {
+                                    defer { try? fh.close() }
+                                    try? fh.seekToEnd()
+                                    try? fh.write(line.data(using: .utf8)!)
+                                } else {
+                                    try? line.write(to: url, atomically: true, encoding: .utf8)
+                                }
+                            }
+                        }))
+                        .labelsHidden()
+                        .toggleStyle(.checkbox)
+                        .fixedSize()
+                    Text(SMAppService.mainApp.status == .requiresApproval
+                         ? "Launch at Login (needs approval)"
+                         : "Launch at Login")
+                        .font(.body)
+                        .fixedSize()
+                }
+                .help("Start mac-midi-router automatically at login — approve it in System Settings → General → Login Items when asked")
             }
         }
         .padding()
