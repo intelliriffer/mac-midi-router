@@ -34,9 +34,21 @@ struct PopoverView: View {
         }
     }
 
+    /// Renders the mapping kind for the row: `all` stays, `ch N` reads
+    /// "channel N", and `M:N` reads "merge → N".
+    private func typeText(source: String, dest: String) -> String {
+        switch engine.cellLabel(source: source, dest: dest) {
+        case "all": return "all"
+        case let label where label.hasPrefix("ch "): return "channel \(label.dropFirst(3))"
+        case let label where label.hasPrefix("M:"): return "merge → \(label.dropFirst(2))"
+        case let label: return label
+        }
+    }
+
     /// The route rows themselves — hugs its content; wrapped in a ScrollView
     /// by the body only when the list would exceed the screen cap.
-    /// One row per mapping: switch first, then "source → dest".
+    /// One row per mapping: switch first, then source, then the mapping
+    /// type, then the target (destination) with a leading "→ ".
     private var routeListContent: some View {
         VStack(alignment: .leading, spacing: 8) {
             ForEach(mappingRows) { row in
@@ -49,17 +61,21 @@ struct PopoverView: View {
                         .labelsHidden()
                         .help("Mapping \"\(row.source)\" → \"\(row.dest)\" on/off")
 
-                    Text("\(row.source) → \(row.dest)")
+                    Text(row.source)
                         .font(.body)
                         .lineLimit(1)
                         .truncationMode(.tail)
 
-                    Spacer()
-
-                    Text(engine.cellLabel(source: row.source, dest: row.dest))
+                    Text(typeText(source: row.source, dest: row.dest))
                         .font(.callout)
                         .foregroundStyle(.secondary)
-                        .help("Mapping \"\(row.source)\" → \"\(row.dest)\" on/off")
+
+                    Text("→ \(row.dest)")
+                        .font(.body)
+                        .lineLimit(1)
+                        .truncationMode(.head)
+
+                    Spacer()
                 }
             }
 
