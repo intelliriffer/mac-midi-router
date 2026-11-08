@@ -304,6 +304,19 @@ struct MatrixCell: View {
             .menuIndicator(.hidden)
             .menuStyle(.borderlessButton)
             .overlay(cellVisual)
+            .overlay(alignment: .leading) {
+                if !isEmpty {
+                    Circle()
+                        .fill(isMuted ? .red : .green)
+                        .frame(width: 6, height: 6)
+                        .padding(.leading, 5)
+                        .contentShape(Circle().inset(by: -4))
+                        .onTapGesture {
+                            engine.setMappingEnabled(source: source, dest: dest, enabled: isMuted)
+                        }
+                        .help(isMuted ? "Click to enable mapping" : "Click to mute mapping")
+                }
+            }
             .help("\(source) → \(dest) · \(modeText)\(routeEnabled ? "" : " (route off)")\(isMuted ? " (muted)" : "")")
         }
     }
@@ -313,24 +326,18 @@ struct MatrixCell: View {
     /// label only hosts an invisible hit area and this overlay paints the
     /// look. allowsHitTesting(false) keeps clicks on the menu beneath.
     private var cellVisual: some View {
-        HStack(spacing: 4) {
-            if !isEmpty {
-                Circle()
-                    .fill(isMuted ? .red : .green)
-                    .frame(width: 6, height: 6)
-            }
-            Text(engine.cellLabel(source: source, dest: dest))
-                .font(.system(size: 10, weight: isMuted ? .semibold : .medium, design: .monospaced))
-                .foregroundStyle(isMuted ? AnyShapeStyle(.red)
-                                         : (isEmpty ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary)))
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: 22)
-        .padding(.horizontal, 2)
-        .background(cellColor)
-        .cornerRadius(5)
-        .allowsHitTesting(false)
+        Text(engine.cellLabel(source: source, dest: dest))
+            .font(.system(size: 10, weight: isMuted ? .semibold : .medium, design: .monospaced))
+            .foregroundStyle(isMuted ? AnyShapeStyle(.red)
+                                     : (isEmpty ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary)))
+            .frame(maxWidth: .infinity)
+            .frame(height: 22)
+            .padding(.horizontal, 2)
+            .background(cellColor)
+            .cornerRadius(5)
+            .allowsHitTesting(false)
     }
+
 
     private var selfRouteCell: some View {
         ZStack {
