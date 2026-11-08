@@ -62,4 +62,32 @@ final class ModelTests: XCTestCase {
         XCTAssertNil(Destination(name: "UM-1", filter: .all, merge: 17).merge)
         XCTAssertEqual(Destination(name: "UM-1", filter: .all, merge: 16).merge, 16)
     }
+
+    func testEnabledRoundTrip() throws {
+        var d = Destination(name: "UM-1", filter: .all, merge: 7)
+        XCTAssertEqual(d.enabled, true)
+        d.enabled = false
+        let data = try JSONEncoder().encode(d)
+        XCTAssertEqual(try JSONDecoder().decode(Destination.self, from: data), d)
+    }
+
+    func testLegacyJSONWithoutEnabledDecodesTrue() throws {
+        // On-disk shape today (synthesized enum Codable: {"all":{}}),
+        // plus a merge key from the previous feature: no "enabled" at all.
+        let json = """
+        {"name":"UM-1","filter":{"all":{}},"merge":10}
+        """
+        let d = try JSONDecoder().decode(Destination.self, from: Data(json.utf8))
+        XCTAssertTrue(d.enabled)
+        XCTAssertEqual(d.merge, 10)
+    }
+
+    func testExplicitEnabledDecodesFalse() throws {
+        let json = """
+        {"name":"UM-1","filter":{"all":{}},"enabled":false}
+        """
+        let d = try JSONDecoder().decode(Destination.self, from: Data(json.utf8))
+        XCTAssertFalse(d.enabled)
+        XCTAssertNil(d.merge)
+    }
 }

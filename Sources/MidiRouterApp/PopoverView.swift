@@ -16,49 +16,71 @@ struct PopoverView: View {
         return max(120, screen - 280)
     }
 
-    /// Estimated list height (~36pt per row + spacing) vs the cap.
+    /// Estimated list height (~40pt per mapping row + spacing) vs the cap.
     private var routesWouldOverflow: Bool {
-        let estimated = CGFloat(max(engine.config.currentRoutes.count, 1)) * 40 + 16
+        let estimated = CGFloat(max(mappingRows.count, 1)) * 40 + 16
         return estimated > maxRoutesHeight
+    }
+
+    private struct MappingRow: Identifiable {
+        let source: String
+        let dest: String
+        var id: String { "\(source) → \(dest)" }
+    }
+
+    private var mappingRows: [MappingRow] {
+        engine.config.currentRoutes.flatMap { route in
+            route.destinations.map { MappingRow(source: route.source, dest: $0.name) }
+        }
+    }
+
+    /// Renders the mapping kind for the row: `all` stays, `ch N` reads
+    /// "channel N", and `M:N` reads "merge → N".
+    private func typeText(source: String, dest: String) -> String {
+        switch engine.cellLabel(source: source, dest: dest) {
+        case "all": return "all"
+        case let label where label.hasPrefix("ch "): return "channel \(label.dropFirst(3))"
+        case let label where label.hasPrefix("M:"): return "merge → \(label.dropFirst(2))"
+        case let label: return label
+        }
     }
 
     /// The route rows themselves — hugs its content; wrapped in a ScrollView
     /// by the body only when the list would exceed the screen cap.
-    /// Switch first, then the source name (user preference).
+    /// One row per mapping: switch first, then source, then the mapping
+    /// type, then the target (destination) with a leading "→ ".
     private var routeListContent: some View {
         VStack(alignment: .leading, spacing: 8) {
-            ForEach(engine.config.currentRoutes, id: \.source) { route in
+            ForEach(mappingRows) { row in
                 HStack(spacing: 8) {
                     Toggle("", isOn: Binding(
-                        get: {
-                            engine.config.currentRoutes
-                                .first { $0.source == route.source }?.enabled ?? false
-                        },
-                        set: {
-                            engine.setRouteEnabled(source: route.source, enabled: $0)
-                        }))
-                    .toggleStyle(.switch)
-                    .controlSize(.small)          // smaller switch chrome; label is hidden anyway
-                    .labelsHidden()
-                    .help("Route \"\(route.source)\" on/off")
+                        get: { engine.mappingEnabled(source: row.source, dest: row.dest) ?? false },
+                        set: { engine.setMappingEnabled(source: row.source, dest: row.dest, enabled: $0) }))
+                        .toggleStyle(.switch)
+                        .controlSize(.small)
+                        .labelsHidden()
+                        .help("Mapping \"\(row.source)\" → \"\(row.dest)\" on/off")
 
-                    Text(route.source)
-                        .font(.body)               // same size as the footer buttons
+                    Text(row.source)
+                        .font(.body)
                         .lineLimit(1)
                         .truncationMode(.tail)
 
-                    Spacer()
-
-                    Text("\(route.destinations.count) →")
+                    Text(typeText(source: row.source, dest: row.dest))
                         .font(.callout)
                         .foregroundStyle(.secondary)
-                        .opacity(route.enabled ? 1 : 0.4)
-                        .help("Route \"\(route.source)\" on/off")
+
+                    Text("→ \(row.dest)")
+                        .font(.body)
+                        .lineLimit(1)
+                        .truncationMode(.head)
+
+                    Spacer()
                 }
             }
 
-            if engine.config.currentRoutes.isEmpty {
-                Text("No routes yet — open the Router.")
+            if mappingRows.isEmpty {
+                Text("No mappings yet — open the Router.")
                     .foregroundStyle(.secondary)
             }
         }
@@ -113,7 +135,7 @@ struct PopoverView: View {
             }
         }
         .padding()
-        .frame(width: 300, alignment: .leading)   // fixed width, height hugs content
+        .frame(width: 440, alignment: .leading)   // fixed width — wide enough for port names
     }
 }
 

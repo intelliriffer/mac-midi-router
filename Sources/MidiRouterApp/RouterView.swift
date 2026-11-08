@@ -297,21 +297,48 @@ struct MatrixCell: View {
                     }
                 }
             } label: {
-                Text(engine.cellLabel(source: source, dest: dest))
-                    .font(.system(size: 10, weight: .medium, design: .monospaced))
-                    .foregroundStyle(isEmpty ? .tertiary : .primary)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 22)
-                    .padding(.horizontal, 2)
-                    .background(cellColor)
-                    .cornerRadius(5)
+                Color.clear
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .contentShape(Rectangle())
             }
             .menuIndicator(.hidden)
             .menuStyle(.borderlessButton)
-            .help("\(source) → \(dest) · \(modeText)\(routeEnabled ? "" : " (route off)")")
+            .focusable(false)
+            .overlay(cellVisual)
+            .overlay(alignment: .leading) {
+                if !isEmpty {
+                    Circle()
+                        .fill(isMuted ? AnyShapeStyle(.red) : AnyShapeStyle(.green))
+                        .frame(width: 10, height: 10)
+                        .padding(.leading, 4)
+                        .contentShape(Circle().inset(by: -6))
+                        .onTapGesture {
+                            engine.setMappingEnabled(source: source, dest: dest, enabled: isMuted)
+                        }
+                        .help(isMuted ? "Click to enable mapping" : "Click to mute mapping")
+                }
+            }
+            .help("\(source) → \(dest) · \(modeText)\(routeEnabled ? "" : " (route off)")\(isMuted ? " (muted)" : "")")
         }
     }
+
+    /// The cell's visual, OUTSIDE the system menu label: macOS replaces the
+    /// Menu label's own colors (observed — .red did not paint at all), so the
+    /// label only hosts an invisible hit area and this overlay paints the
+    /// look. allowsHitTesting(false) keeps clicks on the menu beneath.
+    private var cellVisual: some View {
+        Text(engine.cellLabel(source: source, dest: dest))
+            .font(.system(size: 10, weight: isMuted ? .semibold : .medium, design: .monospaced))
+            .foregroundStyle(isMuted ? AnyShapeStyle(.white)
+                                     : (isEmpty ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary)))
+            .frame(maxWidth: .infinity)
+            .frame(height: 22)
+            .padding(.horizontal, 2)
+            .background(cellColor)
+            .cornerRadius(5)
+            .allowsHitTesting(false)
+    }
+
 
     private var selfRouteCell: some View {
         ZStack {
@@ -346,6 +373,10 @@ struct MatrixCell: View {
             .first { $0.source == source }?.enabled ?? false
     }
 
+    private var isMuted: Bool {
+        engine.mappingEnabled(source: source, dest: dest) == false
+    }
+
     private var cellColor: Color {
         if isEmpty {
             return Color.primary.opacity(0.03)
@@ -353,10 +384,13 @@ struct MatrixCell: View {
         if !routeEnabled {
             return .gray.opacity(0.2)              // route muted off in router
         }
-        if !engine.matrixConnectedDestinations.contains(dest) {
-            return isMerged ? .indigo.opacity(0.35) : .gray.opacity(0.45)   // configured, device missing
+        if isMuted {
+            return .red.opacity(0.12)              // muted tint
         }
-        return isMerged ? .indigo.opacity(0.7) : .accentColor.opacity(0.7)  // routed + connected
+        if !engine.matrixConnectedDestinations.contains(dest) {
+            return isMerged ? .indigo.opacity(0.12) : .gray.opacity(0.45)   // configured, device missing
+        }
+        return isMerged ? .indigo.opacity(0.35) : .accentColor.opacity(0.35)  // routed + connected
     }
 }
 

@@ -119,4 +119,46 @@ final class EngineForwardTests: XCTestCase {
         XCTAssertEqual(io.receivedLog[0].packets.flatMap(\.bytes), [0xF8])
         _ = engine
     }
+
+    func testDisabledMappingNotForwarded() {
+        var route = Route(source: "Keys", enabled: true,
+                          destinations: [Destination(name: "UM-1", filter: .all)])
+        route.destinations[0].enabled = false      // construct-time mute (bypasses engine API)
+        let (io, engine) = boot([route])
+        io.fakeSend(source: "Keys", packets: [
+            MIDIPacket(bytes: [0x90, 0x3C, 0x40]),
+            MIDIPacket(bytes: [0xF8])])
+        XCTAssertTrue(io.receivedLog.isEmpty)
+        XCTAssertNil(engine.mappingEnabled(source: "Keys", dest: "Bass"))
+        XCTAssertEqual(engine.mappingEnabled(source: "Keys", dest: "UM-1"), false)
+        _ = engine
+    }
+
+    func testSetMappingEnabledRestoresForwarding() {
+        var route = Route(source: "Keys", enabled: true,
+                          destinations: [Destination(name: "UM-1", filter: .channel(2))])
+        route.destinations[0].enabled = false
+        let (io, engine) = boot([route])
+        io.fakeSend(source: "Keys", packets: [MIDIPacket(bytes: [0x91, 0x3C, 0x40])])
+        XCTAssertTrue(io.receivedLog.isEmpty)          // muted
+
+        engine.setMappingEnabled(source: "Keys", dest: "UM-1", enabled: true)
+        XCTAssertEqual(engine.mappingEnabled(source: "Keys", dest: "UM-1"), true)
+        io.fakeSend(source: "Keys", packets: [MIDIPacket(bytes: [0x91, 0x3C, 0x40])])
+        XCTAssertEqual(io.receivedLog.count, 1)        // ch2 note-on passes again
+        XCTAssertEqual(io.receivedLog.last!.packets.flatMap(\.bytes), [0x91, 0x3C, 0x40])
+        _ = engine
+    }
+
+    func testSetCellResetsEnabledToTrue() {
+        let (io, engine) = boot([])
+        engine.setCell(source: "Keys", dest: "UM-1", filter: .all)
+        engine.setMappingEnabled(source: "Keys", dest: "UM-1", enabled: false)
+        XCTAssertEqual(engine.mappingEnabled(source: "Keys", dest: "UM-1"), false)
+
+        engine.setCell(source: "Keys", dest: "UM-1", filter: .all, merge: 7)   // re-set resets
+        XCTAssertEqual(engine.mappingEnabled(source: "Keys", dest: "UM-1"), true)
+        XCTAssertEqual(engine.cellLabel(source: "Keys", dest: "UM-1"), "M:7")
+        _ = io
+    }
 }
