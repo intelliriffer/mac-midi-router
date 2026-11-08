@@ -227,13 +227,13 @@ Append inside `final class EngineForwardTests: XCTestCase` in `Tests/MidiRouterC
             Route(source: "Keys", enabled: true, destinations: [
                 Destination(name: "UM-1", filter: .all, merge: 10)])])
         io.fakeSend(source: "Keys", packets: [
-            MIDIPacket(bytes: [0x95, 0x60, 0x60]),    // ch6 → rewritten to ch10
-            MIDIPacket(bytes: [0x90, 0x3C, 0x40]),    // ch1 → rewritten to ch10
+            MIDIPacket(bytes: [0x95, 0x60, 0x60]),    // ch6 → rewritten to ch10 (0x99)
+            MIDIPacket(bytes: [0x90, 0x3C, 0x40]),    // ch1 → rewritten to ch10 (0x99)
             MIDIPacket(bytes: [0xF8])])               // clock passes untouched
         XCTAssertEqual(io.receivedLog.count, 1)
         XCTAssertEqual(io.receivedLog[0].to, "UM-1")
         XCTAssertEqual(io.receivedLog[0].packets.flatMap(\.bytes),
-                       [0x9A, 0x60, 0x60, 0x9A, 0x3C, 0x40, 0xF8])
+                       [0x99, 0x60, 0x60, 0x99, 0x3C, 0x40, 0xF8])
         _ = engine
     }
 
