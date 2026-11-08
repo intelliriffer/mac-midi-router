@@ -333,24 +333,24 @@ struct MatrixCell: View {
                             engine.setMappingEnabled(source: source, dest: dest, enabled: isMuted)
                         }
                         .help(isMuted ? "Click to enable mapping" : "Click to mute mapping")
+                }
             }
             .overlay(alignment: .trailing) {
-                if showsClockGlyph {
+                if !isEmpty {
                     Image(systemName: "timer")
-                        .font(.system(size: 9))
-                        .foregroundStyle(.secondary)
-                        .padding(5)
-                        .contentShape(Rectangle())
+                        .font(.system(size: 10))
+                        .foregroundStyle(clockPasses ? AnyShapeStyle(.green) : AnyShapeStyle(.red))
+                        .padding(.trailing, 3)
+                        .contentShape(Rectangle().inset(by: -4))
                         .onTapGesture {
                             var types = engine.mappingTypes(source: source, dest: dest) ?? []
                             if types.contains(.clock) { types.remove(.clock) } else { types.insert(.clock) }
                             engine.setMappingTypes(source: source, dest: dest, suppressed: types)
                         }
-                        .help("Click to toggle clock for this mapping (reactivate via the pass menu)")
+                        .help(clockPasses ? "Clock on — click to mute clock" : "Clock off — click to enable clock")
                 }
             }
-            }
-            .help("\(source) → \(dest) · \(modeText)\(suppressedText)\(routeEnabled ? "" : " (route off)")\(isMuted ? " (muted)" : "")\(showsClockGlyph ? " · clock" : "")")
+            .help("\(source) → \(dest) · \(modeText)\(suppressedText)\(routeEnabled ? "" : " (route off)")\(isMuted ? " (muted)" : "")\(clockPasses ? " · clock" : " · clock off")")
         }
     }
 
@@ -371,11 +371,11 @@ struct MatrixCell: View {
             .allowsHitTesting(false)
     }
 
-    /// The clock glyph marks every mapped cell that still forwards clock —
-    /// regardless of the channel/merge/filter selection (painted here; the
-    /// system Menu label would discard it). Empty cells show nothing.
-    private var showsClockGlyph: Bool {
-        !isEmpty && !(engine.mappingTypes(source: source, dest: dest) ?? []).contains(.clock)
+    /// The clock glyph marks every mapped cell — green while clock forwards,
+    /// red while clock is suppressed (painted here; the system Menu label
+    /// would discard it). Empty cells show nothing.
+    private var clockPasses: Bool {
+        !(engine.mappingTypes(source: source, dest: dest) ?? []).contains(.clock)
     }
 
 
