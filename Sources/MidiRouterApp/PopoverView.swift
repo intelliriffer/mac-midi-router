@@ -49,11 +49,34 @@ struct PopoverView: View {
 
                     Spacer()
 
-                    Text("\(route.destinations.count) →")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                        .opacity(route.enabled ? 1 : 0.4)
-                        .help("Route \"\(route.source)\" on/off")
+                    Menu {
+                        if route.destinations.isEmpty {
+                            Button("no mappings") { }
+                                .disabled(true)
+                        }
+                        ForEach(route.destinations, id: \.name) { dest in
+                            Toggle("\(dest.name) (\(engine.cellLabel(source: route.source, dest: dest.name)))",
+                                   isOn: Binding(
+                                       get: {
+                                           engine.mappingEnabled(source: route.source, dest: dest.name) ?? false
+                                       },
+                                       set: {
+                                           engine.setMappingEnabled(source: route.source,
+                                                                    dest: dest.name, enabled: $0)
+                                       }))
+                                .toggleStyle(.switch)
+                                .controlSize(.small)
+                                .disabled(!route.enabled)
+                        }
+                    } label: {
+                        Text("\(route.destinations.count) →")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .opacity(route.enabled ? 1 : 0.4)
+                    }
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
+                    .help("Toggle mappings of \"\(route.source)\"")
                 }
             }
 

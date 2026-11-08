@@ -309,7 +309,7 @@ struct MatrixCell: View {
             }
             .menuIndicator(.hidden)
             .menuStyle(.borderlessButton)
-            .help("\(source) → \(dest) · \(modeText)\(routeEnabled ? "" : " (route off)")")
+            .help("\(source) → \(dest) · \(modeText)\(routeEnabled ? "" : " (route off)")\(isMuted ? " (muted)" : "")")
         }
     }
 
@@ -346,12 +346,22 @@ struct MatrixCell: View {
             .first { $0.source == source }?.enabled ?? false
     }
 
+    private var isMuted: Bool {
+        engine.mappingEnabled(source: source, dest: dest) == false
+    }
+
     private var cellColor: Color {
         if isEmpty {
             return Color.primary.opacity(0.03)
         }
         if !routeEnabled {
             return .gray.opacity(0.2)              // route muted off in router
+        }
+        if isMuted {
+            if !engine.matrixConnectedDestinations.contains(dest) {
+                return .red.opacity(0.25)          // muted, device missing
+            }
+            return .red.opacity(0.45)              // muted
         }
         if !engine.matrixConnectedDestinations.contains(dest) {
             return isMerged ? .indigo.opacity(0.35) : .gray.opacity(0.45)   // configured, device missing
