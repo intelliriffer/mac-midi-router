@@ -70,3 +70,15 @@ public func applyFilter(_ packet: MIDIPacket, _ filter: ChannelFilter) -> MIDIPa
     }
     return out.isEmpty ? nil : MIDIPacket(timestamp: packet.timestamp, bytes: out)
 }
+
+/// Merge mode: rewrites the channel of every channel-voice message to
+/// `channel` (1...16). System messages (0xF0+) carry no channel and pass
+/// untouched. Data bytes are all < 0x80 so mapping only channel-status bytes
+/// covers status-first wire messages without re-splitting.
+public func rewriteToChannel(_ packet: MIDIPacket, _ channel: Int) -> MIDIPacket {
+    let low = UInt8(channel - 1)
+    let bytes = packet.bytes.map { b -> UInt8 in
+        b.isChannelStatus ? (b & 0xF0) | low : b
+    }
+    return MIDIPacket(timestamp: packet.timestamp, bytes: bytes)
+}
