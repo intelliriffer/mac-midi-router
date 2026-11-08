@@ -9,9 +9,12 @@ struct RouterView: View {
     @State private var presetName = ""
     @State private var headerOffset: CGFloat = 0
     @State private var headerBaseX: CGFloat = 0
+    @State private var lastContentMinX: CGFloat = 0
 
     /// Tracks the horizontal scroll offset of the cell rows so the output
-    /// header band (fixed above the vertical scroll) moves in lock-step.
+    /// header band (fixed above the vertical scroll) moves in lock-step:
+    /// the offset is `contentMinX - headerBaseX`, correct regardless of
+    /// which preference handler delivers first.
     private struct HorizontalOffsetKey: PreferenceKey {
         static var defaultValue: CGFloat = 0
         static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
@@ -44,8 +47,10 @@ struct RouterView: View {
                     .foregroundStyle(.orange)
             }
 
-            HStack(alignment: .top, spacing: 0) {
-                axisCorner
+        // Note: rest-column alignment depends on axisCorner being exactly
+        // `sourceWidth` wide and matching the sticky `sourceColumn`.
+        HStack(alignment: .top, spacing: 0) {
+            axisCorner
                 Rectangle()
                     .fill(Color.primary.opacity(0.2))
                     .frame(width: 1, height: headerHeight)
@@ -86,8 +91,14 @@ struct RouterView: View {
             presetsControls
         }
         .padding()
-        .onPreferenceChange(HorizontalOffsetKey.self) { headerOffset = headerBaseX - $0 }
-        .onPreferenceChange(HeaderBaseKey.self) { headerBaseX = $0 }
+        .onPreferenceChange(HeaderBaseKey.self) { base in
+            headerBaseX = base
+            headerOffset = lastContentMinX - base
+        }
+        .onPreferenceChange(HorizontalOffsetKey.self) { content in
+            lastContentMinX = content
+            headerOffset = content - headerBaseX
+        }
     }
 
     // MARK: sticky left column (inputs) — never moves horizontally
