@@ -299,7 +299,7 @@ struct MatrixCell: View {
             } label: {
                 Text(engine.cellLabel(source: source, dest: dest))
                     .font(.system(size: 10, weight: .medium, design: .monospaced))
-                    .foregroundStyle(isEmpty ? .tertiary : .primary)
+                    .foregroundStyle(isMuted ? .red : (isEmpty ? .tertiary : .primary))
                     .frame(maxWidth: .infinity)
                     .frame(height: 22)
                     .padding(.horizontal, 2)
@@ -358,10 +358,7 @@ struct MatrixCell: View {
             return .gray.opacity(0.2)              // route muted off in router
         }
         if isMuted {
-            if !engine.matrixConnectedDestinations.contains(dest) {
-                return .red.opacity(0.35)          // muted, device missing
-            }
-            return .red.opacity(0.6)               // muted
+            return .red.opacity(0.35)              // muted (bg tint kept mild)
         }
         if !engine.matrixConnectedDestinations.contains(dest) {
             return isMerged ? .indigo.opacity(0.35) : .gray.opacity(0.45)   // configured, device missing
