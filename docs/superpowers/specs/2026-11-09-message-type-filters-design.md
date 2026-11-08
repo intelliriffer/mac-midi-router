@@ -89,7 +89,8 @@ pass:
 - Implemented with SwiftUI `Section("pass")` of 8 `Toggle`s (macOS menus
   render checkmark items).
 - Cell label unchanged; tooltip gains `(no <type>, <type>)` listing suppressed
-  groups when non-empty.
+  groups when non-empty. The cell may show a small timer glyph when clock
+  passes while any channel-voice group is suppressed.
 - Selecting `off` clears the whole destination (suppressed set dies with it);
   channel/merge selection preserves the suppressed set.
 

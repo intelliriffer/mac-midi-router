@@ -60,12 +60,29 @@ func messageKept(_ status: UInt8, _ filter: ChannelFilter) -> Bool {
     }
 }
 
+/// The message-category of a status byte; used for per-mapping suppression.
+public func messageType(_ status: UInt8) -> MessageType {
+    switch status {
+    case 0x80...0x9F: return .note
+    case 0xA0...0xAF, 0xD0...0xDF: return .aftertouch
+    case 0xB0...0xBF: return .cc
+    case 0xC0...0xCF: return .programChange
+    case 0xE0...0xEF: return .pitchBend
+    case 0xF0: return .sysex
+    case 0xF1...0xF7: return .systemCommon
+    default: return .clock                    // 0xF8...0xFF real-time
+    }
+}
+
 /// Channel-filters one packet. Returns nil when every byte drops out.
-/// `.all` is the identity (no re-copy).
-public func applyFilter(_ packet: MIDIPacket, _ filter: ChannelFilter) -> MIDIPacket? {
-    if case .all = filter { return packet }
+/// `.all` is the identity (no re-copy) — with an empty `suppressed` set.
+/// Suppressed message-type groups drop out regardless of channel filter.
+public func applyFilter(_ packet: MIDIPacket, _ filter: ChannelFilter,
+                        suppressed: Set<MessageType> = []) -> MIDIPacket? {
+    if case .all = filter, suppressed.isEmpty { return packet }
     var out: [UInt8] = []
-    for msg in splitMessages(packet.bytes) where messageKept(msg[0], filter) {
+    for msg in splitMessages(packet.bytes)
+          where messageKept(msg[0], filter) && !suppressed.contains(messageType(msg[0])) {
         out.append(contentsOf: msg)
     }
     return out.isEmpty ? nil : MIDIPacket(timestamp: packet.timestamp, bytes: out)

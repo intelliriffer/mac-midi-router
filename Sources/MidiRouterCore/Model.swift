@@ -16,24 +16,31 @@ public enum ChannelFilter: Codable, Equatable, Hashable {
     }
 }
 
+public enum MessageType: String, Codable, CaseIterable, Hashable {
+    case note, cc, programChange, pitchBend, aftertouch, clock, sysex, systemCommon
+}
+
 public struct Destination: Codable, Equatable, Hashable {
     public var name: String
     public var filter: ChannelFilter
     public var merge: Int?
     public var enabled: Bool
+    public var suppressed: Set<MessageType>
 
-    public init(name: String, filter: ChannelFilter, merge: Int? = nil, enabled: Bool = true) {
+    public init(name: String, filter: ChannelFilter, merge: Int? = nil, enabled: Bool = true,
+                suppressed: Set<MessageType> = []) {
         self.name = name
         self.filter = filter
         self.merge = merge.flatMap(Self.validateMerge)
         self.enabled = enabled
+        self.suppressed = suppressed
     }
 
     public static func validateMerge(_ n: Int) -> Int? {
         (1...16).contains(n) ? n : nil
     }
 
-    private enum CodingKeys: String, CodingKey { case name, filter, merge, enabled }
+    private enum CodingKeys: String, CodingKey { case name, filter, merge, enabled, suppressed }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -41,6 +48,7 @@ public struct Destination: Codable, Equatable, Hashable {
         filter = try c.decode(ChannelFilter.self, forKey: .filter)
         merge = try c.decodeIfPresent(Int.self, forKey: .merge)
         enabled = try c.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
+        suppressed = try c.decodeIfPresent(Set<MessageType>.self, forKey: .suppressed) ?? []
     }
 }
 

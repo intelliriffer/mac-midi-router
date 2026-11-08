@@ -88,4 +88,49 @@ final class FilterTests: XCTestCase {
         XCTAssertEqual(rewriteToChannel(mixed, 7).bytes,
                        [0x96, 0x3C, 0x40, 0xB6, 0x07, 0x64, 0xF8])
     }
+
+    func testMessageClassification() {
+        XCTAssertEqual(messageType(0x80), .note)          // note off
+        XCTAssertEqual(messageType(0x91), .note)          // note on
+        XCTAssertEqual(messageType(0xA5), .aftertouch)    // poly aftertouch
+        XCTAssertEqual(messageType(0xB3), .cc)            // CC
+        XCTAssertEqual(messageType(0xC0), .programChange)
+        XCTAssertEqual(messageType(0xDF), .aftertouch)    // channel pressure
+        XCTAssertEqual(messageType(0xE7), .pitchBend)
+        XCTAssertEqual(messageType(0xF0), .sysex)
+        XCTAssertEqual(messageType(0xF2), .systemCommon)  // song position
+        XCTAssertEqual(messageType(0xF8), .clock)         // clock
+        XCTAssertEqual(messageType(0xFE), .clock)         // active sensing
+    }
+
+    func testSuppressionDropsSuppressedGroups() {
+        let s: Set<MessageType> = [.note, .clock]
+        XCTAssertNil(applyFilter(pkt([0x90, 0x3C, 0x40]), .all, suppressed: s))
+        XCTAssertNil(applyFilter(pkt([0xF8]), .all, suppressed: s))
+        XCTAssertEqual(applyFilter(pkt([0xB5, 0x07, 0x64]), .all, suppressed: s),
+                       pkt([0xB5, 0x07, 0x64]))                          // CC survives
+        XCTAssertEqual(applyFilter(pkt([0xF8]), .all, suppressed: []), pkt([0xF8]))
+    }
+
+    func testSuppressionCombinesWithChannelFilter() {
+        let s: Set<MessageType> = [.clock]
+        // .channel(2) keeps only ch2 notes; clock suppressed regardless.
+        XCTAssertNil(applyFilter(pkt([0xF8, 0x90, 0x3C, 0x40]), .channel(2), suppressed: s))
+        XCTAssertEqual(applyFilter(pkt([0xF8, 0x91, 0x3C, 0x40]), .channel(2), suppressed: s),
+                       pkt([0x91, 0x3C, 0x40]))
+        // Channel-voice `all` filter with everything else passing.
+        XCTAssertEqual(applyFilter(pkt([0xC1, 0x00, 0xF8]), .all, suppressed: [.clock]),
+                       pkt([0xC1, 0x00]))                     // program change kept, clock gone
+    }
+
+    func testClockOnlyLaneKernel() {
+        let voice: Set<MessageType> = [.note, .cc, .programChange, .pitchBend, .aftertouch]
+        XCTAssertEqual(applyFilter(pkt([0xF8, 0x91, 0x3C, 0x40, 0xF0, 0x06, 0xF7]),
+                                   .all, suppressed: voice)?.bytes,
+                       [0xF8, 0xF0, 0x06, 0xF7])
+        XCTAssertNil(applyFilter(pkt([0xF2, 0x00, 0x64]), .all, suppressed: [.systemCommon]),
+                     "song position drops as a group")
+        XCTAssertNil(applyFilter(pkt([0xA1, 0x3C, 0x7F]), .all, suppressed: [.aftertouch]),
+                     "poly aftertouch drops as a group")
+    }
 }
