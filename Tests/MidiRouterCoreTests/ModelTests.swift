@@ -90,4 +90,21 @@ final class ModelTests: XCTestCase {
         XCTAssertFalse(d.enabled)
         XCTAssertNil(d.merge)
     }
+
+    func testSuppressedRoundTrip() throws {
+        var d = Destination(name: "UM-1", filter: .all, merge: 7)
+        XCTAssertTrue(d.suppressed.isEmpty)
+        d.suppressed = [.clock, .sysex]
+        let data = try JSONEncoder().encode(d)
+        XCTAssertEqual(try JSONDecoder().decode(Destination.self, from: data), d)
+    }
+
+    func testLegacyJSONWithoutSuppressedDecodesEmpty() throws {
+        let json = """
+        {"name":"UM-1","filter":{"all":{}},"merge":10,"enabled":false}
+        """
+        let d = try JSONDecoder().decode(Destination.self, from: Data(json.utf8))
+        XCTAssertTrue(d.suppressed.isEmpty)
+        XCTAssertFalse(d.enabled)
+    }
 }
