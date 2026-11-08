@@ -333,7 +333,22 @@ struct MatrixCell: View {
                             engine.setMappingEnabled(source: source, dest: dest, enabled: isMuted)
                         }
                         .help(isMuted ? "Click to enable mapping" : "Click to mute mapping")
+            }
+            .overlay(alignment: .trailing) {
+                if showsClockGlyph {
+                    Image(systemName: "timer")
+                        .font(.system(size: 9))
+                        .foregroundStyle(.secondary)
+                        .padding(5)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            var types = engine.mappingTypes(source: source, dest: dest) ?? []
+                            if types.contains(.clock) { types.remove(.clock) } else { types.insert(.clock) }
+                            engine.setMappingTypes(source: source, dest: dest, suppressed: types)
+                        }
+                        .help("Click to toggle clock for this mapping (reactivate via the pass menu)")
                 }
+            }
             }
             .help("\(source) → \(dest) · \(modeText)\(suppressedText)\(routeEnabled ? "" : " (route off)")\(isMuted ? " (muted)" : "")\(showsClockGlyph ? " · clock" : "")")
         }
@@ -353,14 +368,6 @@ struct MatrixCell: View {
             .padding(.horizontal, 2)
             .background(cellColor)
             .cornerRadius(5)
-            .overlay(alignment: .trailing) {
-                if showsClockGlyph {
-                    Image(systemName: "timer")
-                        .font(.system(size: 8))
-                        .foregroundStyle(.secondary)
-                        .padding(.trailing, 2)
-                }
-            }
             .allowsHitTesting(false)
     }
 
