@@ -296,6 +296,21 @@ struct MatrixCell: View {
                         }
                     }
                 }
+                Divider()
+                Section("pass") {
+                    ForEach(Array(MessageType.allCases), id: \.self) { type in
+                        Toggle(title(for: type), isOn: Binding(
+                            get: {
+                                !(engine.mappingTypes(source: source, dest: dest)?
+                                    .contains(type) ?? false)
+                            },
+                            set: { pass in
+                                var set = engine.mappingTypes(source: source, dest: dest) ?? []
+                                if pass { set.remove(type) } else { set.insert(type) }
+                                engine.setMappingTypes(source: source, dest: dest, suppressed: set)
+                            }))
+                    }
+                }
             } label: {
                 Color.clear
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -318,7 +333,7 @@ struct MatrixCell: View {
                         .help(isMuted ? "Click to enable mapping" : "Click to mute mapping")
                 }
             }
-            .help("\(source) → \(dest) · \(modeText)\(routeEnabled ? "" : " (route off)")\(isMuted ? " (muted)" : "")")
+            .help("\(source) → \(dest) · \(modeText)\(suppressedText)\(routeEnabled ? "" : " (route off)")\(isMuted ? " (muted)" : "")\(isSyncLane ? " · sync lane" : "")")
         }
     }
 
@@ -336,7 +351,24 @@ struct MatrixCell: View {
             .padding(.horizontal, 2)
             .background(cellColor)
             .cornerRadius(5)
+            .overlay(alignment: .trailing) {
+                if isSyncLane {
+                    Image(systemName: "timer")
+                        .font(.system(size: 8))
+                        .foregroundStyle(.secondary)
+                        .padding(.trailing, 2)
+                }
+            }
             .allowsHitTesting(false)
+    }
+
+    /// Sync-lane cells still forward the clock while dropping performance
+    /// data — flagged with a small clock glyph at the cell's trailing edge
+    /// (painted here; the system Menu label would discard it).
+    private var isSyncLane: Bool {
+        let suppressed = engine.mappingTypes(source: source, dest: dest) ?? []
+        return !suppressed.contains(.clock)
+            && [.note, .cc, .programChange, .pitchBend, .aftertouch].contains { suppressed.contains($0) }
     }
 
 
@@ -375,6 +407,26 @@ struct MatrixCell: View {
 
     private var isMuted: Bool {
         engine.mappingEnabled(source: source, dest: dest) == false
+    }
+
+    /// Static pass type names for the cell menu and tooltip.
+    private func title(for type: MessageType) -> String {
+        switch type {
+        case .note: return "Note"
+        case .cc: return "CC"
+        case .programChange: return "Program Change"
+        case .pitchBend: return "Pitch Bend"
+        case .aftertouch: return "Aftertouch"
+        case .clock: return "Clock"
+        case .sysex: return "Sysex"
+        case .systemCommon: return "System Common"
+        }
+    }
+
+    private var suppressedText: String {
+        let types = engine.mappingTypes(source: source, dest: dest) ?? []
+        guard !types.isEmpty else { return "" }
+        return " (no " + types.map(title(for:)).map { $0.lowercased() }.joined(separator: ", ") + ")"
     }
 
     private var cellColor: Color {
