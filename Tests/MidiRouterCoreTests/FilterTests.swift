@@ -122,4 +122,15 @@ final class FilterTests: XCTestCase {
         XCTAssertEqual(applyFilter(pkt([0xC1, 0x00, 0xF8]), .all, suppressed: [.clock]),
                        pkt([0xC1, 0x00]))                     // program change kept, clock gone
     }
+
+    func testClockOnlyLaneKernel() {
+        let voice: Set<MessageType> = [.note, .cc, .programChange, .pitchBend, .aftertouch]
+        XCTAssertEqual(applyFilter(pkt([0xF8, 0x91, 0x3C, 0x40, 0xF0, 0x06, 0xF7]),
+                                   .all, suppressed: voice)?.bytes,
+                       [0xF8, 0xF0, 0x06, 0xF7])
+        XCTAssertNil(applyFilter(pkt([0xF2, 0x00, 0x64]), .all, suppressed: [.systemCommon]),
+                     "song position drops as a group")
+        XCTAssertNil(applyFilter(pkt([0xA1, 0x3C, 0x7F]), .all, suppressed: [.aftertouch]),
+                     "poly aftertouch drops as a group")
+    }
 }

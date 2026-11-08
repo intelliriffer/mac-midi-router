@@ -197,4 +197,36 @@ final class EngineForwardTests: XCTestCase {
         XCTAssertNil(engine.mappingTypes(source: "Keys", dest: "UM-1"))
         _ = io
     }
+
+    func testClockOnlyLaneForwardsClockAndSysexButNoVoice() {
+        var route = Route(source: "Keys", enabled: true,
+                          destinations: [Destination(name: "UM-1", filter: .all)])
+        route.destinations[0].suppressed = [.note, .cc, .programChange, .pitchBend, .aftertouch]
+        let (io, engine) = boot([route])
+        io.fakeSend(source: "Keys", packets: [
+            MIDIPacket(bytes: [0xF8]),                          // clock → forward
+            MIDIPacket(bytes: [0x91, 0x3C, 0x40]),              // note → drop
+            MIDIPacket(bytes: [0xB0, 0x07, 0x64]),              // CC → drop
+            MIDIPacket(bytes: [0xC0, 0x05]),                    // PC → drop
+            MIDIPacket(bytes: [0xE0, 0x00, 0x40]),              // pitch bend → drop
+            MIDIPacket(bytes: [0xA1, 0x3C, 0x7F]),              // poly AT → drop
+            MIDIPacket(bytes: [0xD0, 0x64]),                    // channel pressure → drop
+            MIDIPacket(bytes: [0xF0, 0x06, 0x07, 0x08, 0xF7]),  // sysex (MMC) → forward
+            MIDIPacket(bytes: [0xF2, 0x00, 0x64])])             // song pos (MTC) → forward
+        XCTAssertEqual(io.receivedLog.count, 1)
+        XCTAssertEqual(io.receivedLog.last!.packets.flatMap(\.bytes),
+                       [0xF8, 0xF0, 0x06, 0x07, 0x08, 0xF7, 0xF2, 0x00, 0x64])
+        _ = engine
+    }
+
+    func testOffClearsSuppressedSet() {
+        var route = Route(source: "Keys", enabled: true,
+                          destinations: [Destination(name: "UM-1", filter: .all)])
+        route.destinations[0].suppressed = [.clock]
+        let (io, engine) = boot([route])
+        XCTAssertEqual(engine.mappingTypes(source: "Keys", dest: "UM-1"), [.clock])
+        engine.setCell(source: "Keys", dest: "UM-1", filter: nil)      // off clears everything
+        XCTAssertNil(engine.mappingTypes(source: "Keys", dest: "UM-1"))
+        _ = io
+    }
 }

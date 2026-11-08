@@ -296,19 +296,21 @@ struct MatrixCell: View {
                         }
                     }
                 }
-                Divider()
-                Section("pass") {
-                    ForEach(Array(MessageType.allCases), id: \.self) { type in
-                        Toggle(title(for: type), isOn: Binding(
-                            get: {
-                                !(engine.mappingTypes(source: source, dest: dest)?
-                                    .contains(type) ?? false)
-                            },
-                            set: { pass in
-                                var set = engine.mappingTypes(source: source, dest: dest) ?? []
-                                if pass { set.remove(type) } else { set.insert(type) }
-                                engine.setMappingTypes(source: source, dest: dest, suppressed: set)
-                            }))
+                if !isEmpty {
+                    Divider()
+                    Section("pass") {
+                        ForEach(Array(MessageType.allCases), id: \.self) { type in
+                            Toggle(title(for: type), isOn: Binding(
+                                get: {
+                                    !(engine.mappingTypes(source: source, dest: dest)?
+                                        .contains(type) ?? false)
+                                },
+                                set: { pass in
+                                    var set = engine.mappingTypes(source: source, dest: dest) ?? []
+                                    if pass { set.remove(type) } else { set.insert(type) }
+                                    engine.setMappingTypes(source: source, dest: dest, suppressed: set)
+                                }))
+                        }
                     }
                 }
             } label: {

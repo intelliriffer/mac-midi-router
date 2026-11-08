@@ -17,7 +17,7 @@
 - Channel filter semantics for channel-voice messages unchanged; suppression only extends what may drop.
 - All existing tests keep passing after each task; run full suite: `swift test`. Focused: `swift test --filter <Name>`.
 - Do not run `scripts/build.sh` until the final task.
-- Only the matrix cell menu changes visually; popover rows unchanged.
+- Only the matrix cell menu changes visually (plus the user-approved sync-lane timer glyph in `cellVisual`); popover rows unchanged.
 
 ---
 

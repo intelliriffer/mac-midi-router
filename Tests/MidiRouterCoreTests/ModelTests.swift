@@ -107,4 +107,14 @@ final class ModelTests: XCTestCase {
         XCTAssertTrue(d.suppressed.isEmpty)
         XCTAssertFalse(d.enabled)
     }
+
+    func testPresetCarriesSuppressedSet() {
+        var state = AppState()
+        var d = Destination(name: "UM-1", filter: .all)
+        d.suppressed = [.clock]
+        state.currentRoutes = [Route(source: "A", destinations: [d])]
+        state.presets = ["gig": state.currentRoutes]
+        XCTAssertTrue(state.loadPreset("gig"))
+        XCTAssertEqual(state.currentRoutes[0].destinations[0].suppressed, [.clock])
+    }
 }
