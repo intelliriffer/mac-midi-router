@@ -466,3 +466,125 @@ Verify manually:
 git add Sources/MidiRouterApp/RouterView.swift
 git commit -m "feat(ui): per-cell merge submenu with M:N label and tint"
 ```
+
+---
+
+### Task 5: Sticky output header while scrolling vertically
+
+**Files:**
+- Modify: `Sources/MidiRouterApp/RouterView.swift` (RouterView body + matrixBody; MatrixCell untouched)
+
+**Interfaces:**
+- Consumes: nothing new from earlier tasks (UI-only; uses existing `destWidth`, `headerHeight`, `sourceWidth`, `outputHeaderRow`).
+- Produces: UI only. A header band (`axisCorner + outputHeaderRow`) fixed above the vertical scroll; it scrolls horizontally in sync with the cell rows via a scroll-offset PreferenceKey so horizontal behavior is unchanged. Source labels stay sticky-left; vertical scrolling no longer moves the output header out of view.
+
+No new unit tests (SwiftUI layout). Verified by `swift build`, `swift test` (44→46 tests must stay green), and manual use.
+
+- [ ] **Step 1: Implement**
+
+In `Sources/MidiRouterApp/RouterView.swift`:
+
+1. Add to `RouterView`'s state (after `@State private var presetName = ""`):
+
+```swift
+    @State private var headerOffset: CGFloat = 0
+
+    /// Tracks the horizontal scroll offset of the cell rows so the output
+    /// header band (fixed above the vertical scroll) moves in lock-step.
+    private struct HorizontalOffsetKey: PreferenceKey {
+        static var defaultValue: CGFloat = 0
+        static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+    }
+```
+
+2. Replace `RouterView.body`'s scroll section (the `ScrollView(.vertical) { HStack(alignment: .top, spacing: 0) { sourceColumn; Rectangle()...; ScrollView(.horizontal) { matrixBody } } }` plus its `.frame(maxHeight: .infinity)`) with:
+
+```swift
+            HStack(alignment: .top, spacing: 0) {
+                axisCorner
+                Rectangle()
+                    .fill(Color.primary.opacity(0.2))
+                    .frame(width: 1, height: headerHeight)
+                outputHeaderRow
+                    .offset(x: headerOffset)
+                    .clipped()
+            }
+            .frame(height: headerHeight, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            ScrollView(.vertical) {
+                HStack(alignment: .top, spacing: 0) {
+                    sourceColumn
+                    Rectangle()
+                        .fill(Color.primary.opacity(0.2))   // column boundary
+                        .frame(width: 1)
+                    ScrollView(.horizontal) {
+                        matrixBody
+                            .background(alignment: .leading) {
+                                GeometryReader { geo in
+                                    Color.clear.preference(
+                                        key: HorizontalOffsetKey.self,
+                                        value: geo.frame(in: .global).minX)
+                                }
+                            }
+                    }
+                }
+            }
+            .frame(maxHeight: .infinity)
+```
+
+3. Add the sync handler to `RouterView.body`'s content (e.g. after `.padding()`):
+
+```swift
+        .onPreferenceChange(HorizontalOffsetKey.self) { contentMinX in
+            // Both bands start at the same X (sourceWidth + 1) and share the
+            // global space's origin, so the delta alone drives the header.
+            headerOffset = (sourceWidth + 1) - contentMinX
+        }
+```
+
+4. Simplify `matrixBody` to rows only (remove the header line and VStack wrapper):
+
+```swift
+    private var matrixBody: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(engine.matrixSources, id: \.self) { source in
+                cellRow(source: source)
+                    .overlay(alignment: .bottom) { rowLine() }
+            }
+        }
+    }
+```
+
+5. Remove `axisCorner` from `sourceColumn` (it moves to the fixed header band). `sourceColumn` becomes:
+
+```swift
+    private var sourceColumn: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(engine.matrixSources, id: \.self) { source in
+                sourceLabel(source)
+                    .overlay(alignment: .bottom) { rowLine() }
+            }
+        }
+        .frame(width: sourceWidth, alignment: .leading)
+    }
+```
+
+Keep `axisCorner`, `outputHeaderRow`, `rowLine`, `columnLine` unchanged. Note `axisCorner`'s bottom `rowLine(strong:)` overlay stays (it now sits exactly above the first row's line under the band edge).
+
+- [ ] **Step 2: Compile check**
+
+Run: `swift build`
+Expected: BUILD SUCCEEDED.
+
+- [ ] **Step 3: Full suite**
+
+Run: `swift test`
+Expected: PASS (all green, no regression).
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add Sources/MidiRouterApp/RouterView.swift
+git commit -m "feat(ui): sticky output header while scrolling vertically"
+```
