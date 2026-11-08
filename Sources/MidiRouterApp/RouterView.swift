@@ -299,7 +299,8 @@ struct MatrixCell: View {
             } label: {
                 Text(engine.cellLabel(source: source, dest: dest))
                     .font(.system(size: 10, weight: .medium, design: .monospaced))
-                    .foregroundStyle(isMuted ? .red : (isEmpty ? .tertiary : .primary))
+                    .foregroundStyle(isMuted ? AnyShapeStyle(.red)
+                                             : (isEmpty ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary)))
                     .frame(maxWidth: .infinity)
                     .frame(height: 22)
                     .padding(.horizontal, 2)
