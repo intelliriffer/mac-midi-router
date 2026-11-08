@@ -8,10 +8,18 @@ struct RouterView: View {
     @ObservedObject var engine: MIDIEngine
     @State private var presetName = ""
     @State private var headerOffset: CGFloat = 0
+    @State private var headerBaseX: CGFloat = 0
 
     /// Tracks the horizontal scroll offset of the cell rows so the output
     /// header band (fixed above the vertical scroll) moves in lock-step.
     private struct HorizontalOffsetKey: PreferenceKey {
+        static var defaultValue: CGFloat = 0
+        static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+    }
+
+    /// The header's own natural leading X in `.global` space; the offset is
+    /// computed as the delta against the scrolled content's X.
+    private struct HeaderBaseKey: PreferenceKey {
         static var defaultValue: CGFloat = 0
         static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
     }
@@ -42,6 +50,12 @@ struct RouterView: View {
                     .fill(Color.primary.opacity(0.2))
                     .frame(width: 1, height: headerHeight)
                 outputHeaderRow
+                    .background(alignment: .leading) {
+                        GeometryReader { geo in
+                            Color.clear.preference(key: HeaderBaseKey.self,
+                                                   value: geo.frame(in: .global).minX)
+                        }
+                    }
                     .offset(x: headerOffset)
                     .clipped()
             }
@@ -72,11 +86,8 @@ struct RouterView: View {
             presetsControls
         }
         .padding()
-        .onPreferenceChange(HorizontalOffsetKey.self) { contentMinX in
-            // Both bands start at the same X (sourceWidth + 1) and share the
-            // global space's origin, so the delta alone drives the header.
-            headerOffset = (sourceWidth + 1) - contentMinX
-        }
+        .onPreferenceChange(HorizontalOffsetKey.self) { headerOffset = headerBaseX - $0 }
+        .onPreferenceChange(HeaderBaseKey.self) { headerBaseX = $0 }
     }
 
     // MARK: sticky left column (inputs) — never moves horizontally
