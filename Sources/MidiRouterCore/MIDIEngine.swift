@@ -159,12 +159,15 @@ extension MIDIEngine: MIDIIODelegate {    /// Fan-out path. Runs on CoreMIDI's r
         guard let route = route else { return }
 
         for dest in route.destinations where connectedTargets.contains(dest.name) {
+            let filter: ChannelFilter = dest.merge == nil ? dest.filter : .all
             var filtered: [MIDIPacket] = []
             filtered.reserveCapacity(packets.count)
             for pkt in packets {
-                if let kept = applyFilter(pkt, dest.filter) {
-                    filtered.append(kept)
+                guard var kept = applyFilter(pkt, filter) else { continue }
+                if let merge = dest.merge {
+                    kept = rewriteToChannel(kept, merge)
                 }
+                filtered.append(kept)
             }
             guard !filtered.isEmpty else { continue }
             io.send(packets: filtered, to: dest.name)
@@ -198,10 +201,16 @@ extension MIDIEngine {
         connected.connectedDestinations
     }
 
+    public func cellMerge(source: String, dest: String) -> Int? {
+        config.currentRoutes.first(where: { $0.source == source })?
+            .destinations.first(where: { $0.name == dest })?.merge
+    }
+
     // MARK: Grid-cell operations
 
-    /// Cell edit: nil filter removes, `.all`/`.channel(n)` sets the route entry.
-    public func setCell(source: String, dest: String, filter: ChannelFilter?) {
+    /// Cell edit: nil filter removes (clears both modes); `.all`/`.channel(n)`
+    /// sets the route entry; merge != nil turns the cell into a merged mapping.
+    public func setCell(source: String, dest: String, filter: ChannelFilter?, merge: Int? = nil) {
         mutateConfig { state in
             let routeIndex =
                 state.currentRoutes.firstIndex(where: { $0.source == source })
@@ -211,12 +220,14 @@ extension MIDIEngine {
             }()
 
             if let filter = filter {
+                let merge = merge.flatMap(Destination.validateMerge)
                 let destinations = state.currentRoutes[routeIndex].destinations
                 if let destIndex = destinations.firstIndex(where: { $0.name == dest }) {
                     state.currentRoutes[routeIndex].destinations[destIndex].filter = filter
+                    state.currentRoutes[routeIndex].destinations[destIndex].merge = merge
                 } else {
                     state.currentRoutes[routeIndex].destinations
-                        .append(Destination(name: dest, filter: filter))
+                        .append(Destination(name: dest, filter: filter, merge: merge))
                 }
             } else if let destIndex = state.currentRoutes[routeIndex].destinations
                           .firstIndex(where: { $0.name == dest }) {
@@ -226,8 +237,10 @@ extension MIDIEngine {
     }
 
     public func cellLabel(source: String, dest: String) -> String {
-        config.currentRoutes.first(where: { $0.source == source })?
-            .destinations.first(where: { $0.name == dest })?.filter.label ?? "—"
+        let d = config.currentRoutes.first(where: { $0.source == source })?
+            .destinations.first(where: { $0.name == dest })
+        if let merge = d?.merge { return "M:\(merge)" }
+        return d?.filter.label ?? "—"
     }
 
     // MARK: Presets (thin forwards into AppState, per spec §persistence)

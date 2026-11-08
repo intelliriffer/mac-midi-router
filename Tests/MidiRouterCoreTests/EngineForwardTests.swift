@@ -64,6 +64,40 @@ final class EngineForwardTests: XCTestCase {
         _ = engine
     }
 
+    func testMergeCellRewritesAllInputToTargetChannel() {
+        let (io, engine) = boot([
+            Route(source: "Keys", enabled: true, destinations: [
+                Destination(name: "UM-1", filter: .all, merge: 10)])])
+        io.fakeSend(source: "Keys", packets: [
+            MIDIPacket(bytes: [0x95, 0x60, 0x60]),    // ch6 → rewritten to ch10 (0x99)
+            MIDIPacket(bytes: [0x90, 0x3C, 0x40]),    // ch1 → rewritten to ch10 (0x99)
+            MIDIPacket(bytes: [0xF8])])               // clock passes untouched
+        XCTAssertEqual(io.receivedLog.count, 1)
+        XCTAssertEqual(io.receivedLog[0].to, "UM-1")
+        XCTAssertEqual(io.receivedLog[0].packets.flatMap(\.bytes),
+                       [0x99, 0x60, 0x60, 0x99, 0x3C, 0x40, 0xF8])
+        _ = engine
+    }
+
+    func testSetCellSetsAndClearsMergeAndUpdatesLabel() {
+        let (io, engine) = boot([])
+        engine.setCell(source: "Keys", dest: "UM-1", filter: .all, merge: 7)
+        XCTAssertEqual(engine.cellLabel(source: "Keys", dest: "UM-1"), "M:7")
+        XCTAssertEqual(engine.cellMerge(source: "Keys", dest: "UM-1"), 7)
+
+        engine.setCell(source: "Keys", dest: "UM-1", filter: .channel(3))
+        XCTAssertEqual(engine.cellLabel(source: "Keys", dest: "UM-1"), "ch 3")
+        XCTAssertNil(engine.cellMerge(source: "Keys", dest: "UM-1"))
+
+        engine.setCell(source: "Keys", dest: "UM-1", filter: .all, merge: 99) // invalid → ignored
+        XCTAssertEqual(engine.cellMerge(source: "Keys", dest: "UM-1"), nil)
+        XCTAssertEqual(engine.cellLabel(source: "Keys", dest: "UM-1"), "all")
+
+        engine.setCell(source: "Keys", dest: "UM-1", filter: nil)
+        XCTAssertEqual(engine.cellLabel(source: "Keys", dest: "UM-1"), "—")
+        _ = io
+    }
+
     func testSystemMessagesViaSingleChannelRoute() {
         let (io, engine) = boot([
             Route(source: "Keys", enabled: true, destinations: [
